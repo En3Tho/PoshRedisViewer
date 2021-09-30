@@ -1,0 +1,35 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "PoshRedisViewer", "PoshRedisViewer\PoshRedisViewer.fsproj", "{BA3A07AF-CB3B-47BB-B373-36A139ED3249}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "PoshRedisViewerHost", "PoshRedisViewerHost\PoshRedisViewerHost.fsproj", "{D24C16C7-1D8E-4510-82F1-F1B6A6EC1F89}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "PoshRedisViewerModule", "PoshRedisViewerModule\PoshRedisViewerModule.fsproj", "{9519E9D2-FF3C-4D41-9E24-BC832B66EAB7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{226CB7CF-2C39-4603-8C69-4E64A1259F78}"
+ProjectSection(SolutionItems) = preProject
+	..\.gitignore = ..\.gitignore
+	..\LICENSE = ..\LICENSE
+	..\README.md = ..\README.md
+EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BA3A07AF-CB3B-47BB-B373-36A139ED3249}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA3A07AF-CB3B-47BB-B373-36A139ED3249}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA3A07AF-CB3B-47BB-B373-36A139ED3249}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA3A07AF-CB3B-47BB-B373-36A139ED3249}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D24C16C7-1D8E-4510-82F1-F1B6A6EC1F89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D24C16C7-1D8E-4510-82F1-F1B6A6EC1F89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D24C16C7-1D8E-4510-82F1-F1B6A6EC1F89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D24C16C7-1D8E-4510-82F1-F1B6A6EC1F89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9519E9D2-FF3C-4D41-9E24-BC832B66EAB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9519E9D2-FF3C-4D41-9E24-BC832B66EAB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9519E9D2-FF3C-4D41-9E24-BC832B66EAB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9519E9D2-FF3C-4D41-9E24-BC832B66EAB7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
