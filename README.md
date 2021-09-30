@@ -19,6 +19,8 @@ Copy and Paste is allowed:
 
 Query, command and filter execution require "Enter" key press.
 
+Also, keys and commands support history mode using CursorUp and CursorDown keys.
+
 Powershell module exports "Get-RedisViewer" command:
 - [0, Mandatory] ConnectionString
 - [Optional] User
