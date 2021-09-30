@@ -2,7 +2,7 @@
 
 open System.Threading
 open En3Tho.FSharp.Extensions
-open En3Tho.FSharp.ComputationExpressions.CollectionBuilder.SCollectionBuilder
+open En3Tho.FSharp.ComputationExpressions.SCollectionBuilder
 open NStack
 open PoshRedisViewer.Redis
 open PoshRedisViewer.UIUtil

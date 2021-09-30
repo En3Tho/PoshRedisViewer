@@ -1,6 +1,6 @@
 open System
 open System.Threading.Tasks
-open En3Tho.FSharp.Extensions.Core
+open En3Tho.FSharp.Extensions
 open PoshRedisViewer
 open PoshRedisViewer.Redis
 
