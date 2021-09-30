@@ -125,7 +125,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
 
         match keyDownEvent.KeyEvent.Key with
         | Key.Enter ->
-            ignore ^ Semaphore.runTask semaphore ^ task {
+           semaphore |> Semaphore.runTask ^ task {
                 let database = dbPickerComboBox.SelectedItem
                 let pattern = keyQueryTextField.Text.ToString()
                 keysFrameView.Title <- ustr "Keys (processing)"
@@ -139,6 +139,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                 keysListView.SetSource(filteredSource)
                 keysFrameView.Title <- ustr "Keys"
             }
+           |> ignore
         | Key.CursorUp ->
             match keyQueryHistory.Up() with
             | ValueSome { Key = keyQuery; Value = source } ->
@@ -173,7 +174,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
     View.preventCursorUpDownKeyPressedEvents dbPickerComboBox
     let mutable resultsFromKeyQuery = [||]
     keysListView.add_SelectedItemChanged(fun selectedItemChangedEvent ->
-        ignore ^ Semaphore.runTask semaphore ^ task {
+        semaphore |> Semaphore.runTask ^ task {
             match selectedItemChangedEvent.Value with
             | null -> ()
             | value ->
@@ -187,6 +188,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                 resultsListView.SetSource filteredSource
                 resultsFrameView.Title <- ustr $"Results ({Union.getName keyValue})"
         }
+        |> ignore
     )
 
     keysListView.add_KeyDown(fun keyDownEvent ->
@@ -221,7 +223,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
 
         match keyDownEvent.KeyEvent.Key with
         | Key.Enter ->
-            ignore ^ Semaphore.runTask semaphore ^ task {
+            semaphore |> Semaphore.runTask ^ task {
                 let database = dbPickerComboBox.SelectedItem
                 let command = commandTextField.Text.ToString()
                 resultsFrameView.Title <- ustr "Results (processing)"
@@ -239,6 +241,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                 resultsListView.SetSource(filteredSource)
                 resultsFrameView.Title <- ustr "Results"
             }
+            |> ignore
         | Key.CursorUp ->
             match resultsHistory.Up() with
             | ValueSome { Key = command; Value = source } ->

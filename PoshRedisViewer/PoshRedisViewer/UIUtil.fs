@@ -106,7 +106,7 @@ module View =
         )
 
 module Semaphore =
-    let runTask (semaphore: SemaphoreSlim) (job: Task<'a>) = task {
+    let runTask (job: Task<'a>) (semaphore: SemaphoreSlim) = task {
         do! semaphore.WaitAsync()
         try
             return! job
