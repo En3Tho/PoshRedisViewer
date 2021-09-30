@@ -14,22 +14,26 @@ It allows you to:
 6. Select DB index
 
 Copy and Paste is allowed:
-Windows: Ctrl+C | Ctrl+V
-Linux: Ctrl+Y | Ctrl+V
+- Windows: Ctrl+C | Ctrl+V
+- Linux: Ctrl+Y | Ctrl+V
 
 Query, command and filter execution require "Enter" key press.
 
 Powershell module exports "Get-RedisViewer" command:
-[0, Mandatory] ConnectionString
-[Optional] User
-[Optional] Password
+- [0, Mandatory] ConnectionString
+- [Optional] User
+- [Optional] Password
 
 Example:
-
+```
 Install-Module -Name PoshRedisViewerModule
 Import-Module -Name PoshRedisViewerModule
+```
+then
+```
 Get-RedisViewer "localhost:6379"
-
+```
 or
-
+```
 Get-RedisViewer "localhost:6379" -User me -Password myPassword
+```
