@@ -1,6 +1,8 @@
 ﻿module PoshRedisViewer.UIUtil
 
 open System
+open System.ComponentModel
+open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
@@ -14,6 +16,45 @@ type HistorySlot<'a, 'b> = {
     Key: 'a
     Value: 'b
 }
+
+type KeyQueryResultState = {
+    Keys: string[]
+    FromHistory: bool
+    Filtered: bool
+}
+
+module KeyQueryResultState =
+    let toString (result: KeyQueryResultState) =
+        let flags =
+            seq {
+                toString result.Keys.Length
+                if result.FromHistory then "From History"
+                if result.Filtered then "Filtered"
+            } |> String.concat ", "
+        $"Keys ({flags})"
+
+type ResultsState = {
+    ResultType: string
+    Result: string[]
+    FromHistory: bool
+    Filtered: bool
+}
+
+module ResultsState =
+    let toString (result: ResultsState) =
+        let flags =
+            seq {
+                result.ResultType
+                if result.FromHistory then "From History"
+                if result.Filtered then "Filtered"
+            } |> String.concat ", "
+
+        $"Results ({flags})"
+
+[<AbstractClass; Extension>]
+type ViewExtensions() =
+    [<Extension; EditorBrowsable(EditorBrowsableState.Never)>]
+    static member Run(value: #View, [<InlineIfLambda>] runExpr: RunExpression) = runExpr(); value
 
 type ResultHistoryCache<'a, 'b when 'a: equality>(capacity: int) =
     let syncRoot = obj()

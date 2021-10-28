@@ -103,7 +103,7 @@ module RedisReader =
     let execCommand (multiplexer: IConnectionMultiplexer) database (command: string) = task {
         try
             let database = multiplexer.GetDatabase database
-            let commandAndArgs = command.Split(" ")
+            let commandAndArgs = command.Split(" ", StringSplitOptions.RemoveEmptyEntries)
             let command = commandAndArgs.[0]
             let args = commandAndArgs.[1..] |> Array.map box
 

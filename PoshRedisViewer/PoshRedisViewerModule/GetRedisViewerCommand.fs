@@ -23,11 +23,12 @@ type GetRedisViewerCommand() =
         let user = this.User |> Option.ofString
         let password = this.Password |> Option.ofString
 
-        connectionString
-        |> RedisReader.connect user password
-        |> Task.RunSynchronously
-        |> UI.runApp
-        |> UI.shutdown
-
-        if not Console.IsInputRedirected then
-            Console.Write("\u001b[?1h\u001b[?1003l") // fixes an issue with certain terminals, same as ocgv
+        try
+            connectionString
+            |> RedisReader.connect user password
+            |> Task.RunSynchronously
+            |> UI.runApp
+            |> UI.shutdown
+        finally
+            if not Console.IsInputRedirected then
+                Console.Write("\u001b[?1h\u001b[?1003l") // fixes an issue with certain terminals, same as ocgv

@@ -1,8 +1,8 @@
 ﻿module PoshRedisViewer.UI
 
+open System
 open System.Threading
 open En3Tho.FSharp.Extensions
-open En3Tho.FSharp.Extensions.GenericCollectionBuilderBase
 open En3Tho.FSharp.ComputationExpressions.SCollectionBuilder
 open NStack
 open PoshRedisViewer.Redis
@@ -114,15 +114,28 @@ let runApp(multiplexer: IConnectionMultiplexer) =
 
     let semaphore = new SemaphoreSlim(1)
 
+    let mutable keyQueryResultState = { KeyQueryResultState.Keys = [||]; Filtered = false; FromHistory = false }
+    let filterKeyQueryResult keys = keys |> StringSource.filter (Ustr.toString keyQueryFilterTextField.Text)
+    let updateKeyQueryFieldsWithNewState state =
+        keyQueryResultState <- state
+        keysFrameView.Title <- keyQueryResultState |> KeyQueryResultState.toString |> ustr
+        keysListView.SetSource state.Keys
+
+    let mutable resultState = { ResultsState.Result = [||]; ResultType = ""; Filtered = false; FromHistory = false }
+    let filterCommandResult keys = keys |> StringSource.filter (Ustr.toString resultFilterTextField.Text)
+    let updateResultsFieldsWithNewState state =
+        resultState <- state
+        resultsFrameView.Title <- resultState |> ResultsState.toString |> ustr
+        resultsListView.SetSource state.Result
+
     View.preventCursorUpDownKeyPressedEvents keyQueryTextField
     let keyQueryHistory = ResultHistoryCache(100)
+
     keyQueryTextField.add_KeyDown(fun keyDownEvent ->
 
-        let filterSourceAndSetKeyQueryResultFromHistory keyQuery source =
-            let filteredSource = source |> StringSource.filter (Ustr.toString keyQueryFilterTextField.Text)
+        let filterSourceAndSetKeyQueryResultFromHistory keyQuery keys =
             keyQueryTextField.Text <- ustr keyQuery
-            keysFrameView.Title <- ustr "Keys (From History)"
-            keysListView.SetSource filteredSource
+            updateKeyQueryFieldsWithNewState { keyQueryResultState with Keys = filterKeyQueryResult keys; FromHistory = true }
 
         match keyDownEvent.KeyEvent.Key with
         | Key.Enter ->
@@ -132,13 +145,11 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                 keysFrameView.Title <- ustr "Keys (processing)"
 
                 let! keys = pattern |> RedisReader.getKeys multiplexer database
-                let source = keys |> RedisResult.toStringArray
-                source |> Array.sortInPlace
-                let filteredSource = source |> StringSource.filter (Ustr.toString keyQueryFilterTextField.Text)
+                let keys = keys |> RedisResult.toStringArray
+                keys |> Array.sortInPlace
+                keyQueryHistory.Add(pattern, keys)
 
-                keyQueryHistory.Add(pattern, source)
-                keysListView.SetSource(filteredSource)
-                keysFrameView.Title <- ustr "Keys"
+                updateKeyQueryFieldsWithNewState { keyQueryResultState with Keys = filterKeyQueryResult keys; FromHistory = true }
             }
            |> ignore
         | Key.CursorUp ->
@@ -162,9 +173,9 @@ let runApp(multiplexer: IConnectionMultiplexer) =
         match keyDownEvent.KeyEvent.Key with
         | Key.Enter ->
             match keyQueryHistory.TryReadCurrent() with
-            | ValueSome { Value = source } ->
-                let filteredSource = source |> StringSource.filter (Ustr.toString keyQueryFilterTextField.Text)
-                keysListView.SetSource filteredSource
+            | ValueSome { Value = keys } ->
+                let filter = Ustr.toString keyQueryFilterTextField.Text
+                updateKeyQueryFieldsWithNewState { keyQueryResultState with Keys = filterKeyQueryResult keys; Filtered = not ^ String.IsNullOrEmpty filter }
             | _ -> ()
         | Key.CopyCommand ->
             Clipboard.TrySetClipboardData(keyQueryFilterTextField.Text.ToString()) |> ignore
@@ -183,11 +194,10 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                 let database = dbPickerComboBox.SelectedItem
                 resultsFrameView.Title <- ustr "Results (processing)"
                 let! keyValue = key |> RedisReader.getKeyValue multiplexer database
-                let source = keyValue |> RedisResult.toStringArray
-                let filteredSource = source |> StringSource.filter (Ustr.toString resultFilterTextField.Text)
-                resultsFromKeyQuery <- source
-                resultsListView.SetSource filteredSource
-                resultsFrameView.Title <- ustr $"Results ({Union.getName keyValue})"
+                let result = keyValue |> RedisResult.toStringArray
+
+                resultsFromKeyQuery <- result
+                updateResultsFieldsWithNewState { resultState with Result = filterCommandResult result; ResultType = Union.getName keyValue; FromHistory = false }
         }
         |> ignore
     )
@@ -216,42 +226,39 @@ let runApp(multiplexer: IConnectionMultiplexer) =
     let resultsHistory = ResultHistoryCache(100)
     commandTextField.add_KeyDown(fun keyDownEvent ->
 
-        let filterSourceAndSetCommandResultFromHistory command source =
-            let filteredSource = source |> StringSource.filter (Ustr.toString resultFilterTextField.Text)
+        let filterSourceAndSetCommandResultFromHistory command commandResult =
             commandTextField.Text <- ustr command
-            resultsFrameView.Title <- ustr "Results (From History)"
-            resultsListView.SetSource filteredSource
+            updateResultsFieldsWithNewState { resultState with Result = filterCommandResult commandResult; ResultType = "Command"; FromHistory = true }
 
         match keyDownEvent.KeyEvent.Key with
         | Key.Enter ->
             semaphore |> Semaphore.runTask ^ task {
                 let database = dbPickerComboBox.SelectedItem
                 let command = commandTextField.Text.ToString()
-                resultsFrameView.Title <- ustr "Results (processing)"
+                resultsFrameView.Title <- ustr "Results (Processing)"
                 let! commandResult =
                     command
                     |> RedisReader.execCommand multiplexer database
-                let source =
+                let commandResult =
                     commandResult
                     |> RedisResult.toStringArray
 
+                resultsHistory.Add(command, commandResult)
                 resultsFromKeyQuery <- [||]
-                let filteredSource = source |> StringSource.filter (Ustr.toString resultFilterTextField.Text)
 
-                resultsHistory.Add(command, source)
-                resultsListView.SetSource(filteredSource)
-                resultsFrameView.Title <- ustr "Results"
+                let filter = Ustr.toString resultFilterTextField.Text
+                updateResultsFieldsWithNewState { resultState with Result = filterCommandResult commandResult; ResultType = "Command"; Filtered = not ^ String.IsNullOrEmpty filter }
             }
             |> ignore
         | Key.CursorUp ->
             match resultsHistory.Up() with
-            | ValueSome { Key = command; Value = source } ->
-                filterSourceAndSetCommandResultFromHistory command source
+            | ValueSome { Key = command; Value = results } ->
+                filterSourceAndSetCommandResultFromHistory command results
             | _ -> ()
         | Key.CursorDown ->
             match resultsHistory.Down() with
-            | ValueSome { Key = command; Value = source } ->
-                filterSourceAndSetCommandResultFromHistory command source
+            | ValueSome { Key = command; Value = results } ->
+                filterSourceAndSetCommandResultFromHistory command results
             | _ -> ()
         | _ -> ()
         keyDownEvent.Handled <- true
@@ -262,10 +269,10 @@ let runApp(multiplexer: IConnectionMultiplexer) =
         match keyDownEvent.KeyEvent.Key with
         | Key.Enter ->
             match resultsFromKeyQuery, resultsHistory.TryReadCurrent() with
-            | Array.NotNullOrEmpty as source, _
-            | _, ValueSome { Value = source } ->
-                let filteredSource = source |> StringSource.filter (Ustr.toString resultFilterTextField.Text)
-                resultsListView.SetSource filteredSource
+            | Array.NotNullOrEmpty as commandResult, _
+            | _, ValueSome { Value = commandResult } ->
+                let filter = Ustr.toString resultFilterTextField.Text
+                updateResultsFieldsWithNewState { resultState with Result = filterCommandResult commandResult; Filtered = not ^ String.IsNullOrEmpty filter }
             | _ -> ()
         | Key.CopyCommand ->
             Clipboard.TrySetClipboardData(resultFilterTextField.Text.ToString()) |> ignore
@@ -296,8 +303,6 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                 resultFilterTextField
             }
         }
-    } |> ignore
-
-    window.Subviews.[0].BringSubviewToFront(dbPickerComboBox)
-
-    Application.Run Application.Top
+    } |> fun top ->
+        window.Subviews.[0].BringSubviewToFront(dbPickerComboBox)
+        top |> Application.Run
