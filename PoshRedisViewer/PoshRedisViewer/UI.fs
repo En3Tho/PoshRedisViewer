@@ -149,7 +149,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                 keys |> Array.sortInPlace
                 keyQueryHistory.Add(pattern, keys)
 
-                updateKeyQueryFieldsWithNewState { keyQueryResultState with Keys = filterKeyQueryResult keys; FromHistory = true }
+                updateKeyQueryFieldsWithNewState { keyQueryResultState with Keys = filterKeyQueryResult keys; FromHistory = false }
             }
            |> ignore
         | Key.CursorUp ->
