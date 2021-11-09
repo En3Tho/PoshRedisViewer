@@ -2,7 +2,7 @@
 
 open System
 open System.Collections.Generic
-open FSharp.Control.Tasks
+open En3Tho.FSharp.ComputationExpressions.Tasks
 open StackExchange.Redis
 open En3Tho.FSharp.Extensions.Core
 

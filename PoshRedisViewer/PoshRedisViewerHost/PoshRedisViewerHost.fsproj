@@ -14,8 +14,4 @@
         <ProjectReference Include="..\PoshRedisViewer\PoshRedisViewer.fsproj" />
     </ItemGroup>
 
-    <ItemGroup>
-        <PackageReference Update="FSharp.Core" Version="6.0.0" />
-    </ItemGroup>
-
 </Project>

@@ -10,7 +10,6 @@ open En3Tho.FSharp.Extensions
 open NStack
 open PoshRedisViewer.Redis
 open Terminal.Gui
-open FSharp.Control.Tasks
 
 type HistorySlot<'a, 'b> = {
     Key: 'a
@@ -54,7 +53,7 @@ module ResultsState =
 [<AbstractClass; Extension>]
 type ViewExtensions() =
     [<Extension; EditorBrowsable(EditorBrowsableState.Never)>]
-    static member Run(value: #View, [<InlineIfLambda>] runExpr: RunExpression) = runExpr(); value
+    static member inline Run(value: #View, [<InlineIfLambda>] runExpr: RunExpression) = runExpr(); value
 
 type ResultHistoryCache<'a, 'b when 'a: equality>(capacity: int) =
     let syncRoot = obj()

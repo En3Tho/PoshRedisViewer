@@ -7,7 +7,6 @@ open En3Tho.FSharp.ComputationExpressions.SCollectionBuilder
 open NStack
 open PoshRedisViewer.Redis
 open PoshRedisViewer.UIUtil
-open FSharp.Control.Tasks
 open Terminal.Gui
 
 #nowarn "0058"
@@ -184,7 +183,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
     )
 
     View.preventCursorUpDownKeyPressedEvents dbPickerComboBox
-    let mutable resultsFromKeyQuery = [||]
+    let mutable resultsFromKeyQuery = ValueSome [||]
     keysListView.add_SelectedItemChanged(fun selectedItemChangedEvent ->
         semaphore |> Semaphore.runTask ^ task {
             match selectedItemChangedEvent.Value with
@@ -196,7 +195,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                 let! keyValue = key |> RedisReader.getKeyValue multiplexer database
                 let result = keyValue |> RedisResult.toStringArray
 
-                resultsFromKeyQuery <- result
+                resultsFromKeyQuery <- ValueSome result
                 updateResultsFieldsWithNewState { resultState with Result = filterCommandResult result; ResultType = Union.getName keyValue; FromHistory = false }
         }
         |> ignore
@@ -244,7 +243,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
                     |> RedisResult.toStringArray
 
                 resultsHistory.Add(command, commandResult)
-                resultsFromKeyQuery <- [||]
+                resultsFromKeyQuery <- ValueNone
 
                 let filter = Ustr.toString resultFilterTextField.Text
                 updateResultsFieldsWithNewState { resultState with Result = filterCommandResult commandResult; ResultType = "Command"; Filtered = not ^ String.IsNullOrEmpty filter }
@@ -269,7 +268,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
         match keyDownEvent.KeyEvent.Key with
         | Key.Enter ->
             match resultsFromKeyQuery, resultsHistory.TryReadCurrent() with
-            | Array.NotNullOrEmpty as commandResult, _
+            | ValueSome commandResult, _
             | _, ValueSome { Value = commandResult } ->
                 let filter = Ustr.toString resultFilterTextField.Text
                 updateResultsFieldsWithNewState { resultState with Result = filterCommandResult commandResult; Filtered = not ^ String.IsNullOrEmpty filter }
