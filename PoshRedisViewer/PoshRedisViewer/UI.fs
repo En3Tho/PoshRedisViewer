@@ -7,6 +7,8 @@ open En3Tho.FSharp.ComputationExpressions.SCollectionBuilder
 open NStack
 open PoshRedisViewer.Redis
 open PoshRedisViewer.UIUtil
+open PoshRedisViewer.UIUtil
+open PoshRedisViewer.UIUtil
 open Terminal.Gui
 
 #nowarn "0058"
@@ -164,7 +166,6 @@ let runApp(multiplexer: IConnectionMultiplexer) =
         | Key.CopyCommand ->
             Clipboard.TrySetClipboardData(keyQueryTextField.Text.ToString()) |> ignore
         | _ -> ()
-        keyDownEvent.Handled <- true
     )
 
     View.preventCursorUpDownKeyPressedEvents keyQueryFilterTextField
@@ -179,7 +180,6 @@ let runApp(multiplexer: IConnectionMultiplexer) =
         | Key.CopyCommand ->
             Clipboard.TrySetClipboardData(keyQueryFilterTextField.Text.ToString()) |> ignore
         | _ -> ()
-        keyDownEvent.Handled <- true
     )
 
     View.preventCursorUpDownKeyPressedEvents dbPickerComboBox
@@ -201,25 +201,11 @@ let runApp(multiplexer: IConnectionMultiplexer) =
         |> ignore
     )
 
-    keysListView.add_KeyDown(fun keyDownEvent ->
-        match keyDownEvent.KeyEvent.Key with
-        | Key.CopyCommand ->
-            let source = keysListView.Source.ToList()
-            let selectedItem = source.[keysListView.SelectedItem].ToString()
-            Clipboard.TrySetClipboardData(selectedItem.ToString()) |> ignore
-        | _ -> ()
-        keyDownEvent.Handled <- true
-    )
+    ListView.addValueCopyOnRightClick keysListView
+    ListView.addValueCopyOnCopyHotKey keysListView
 
-    resultsListView.add_KeyDown(fun keyDownEvent ->
-        match keyDownEvent.KeyEvent.Key with
-        | Key.CopyCommand ->
-            let source = resultsListView.Source.ToList()
-            let selectedItem = source.[resultsListView.SelectedItem].ToString()
-            Clipboard.TrySetClipboardData(selectedItem.ToString()) |> ignore
-        | _ -> ()
-        keyDownEvent.Handled <- true
-    )
+    ListView.addValueCopyOnRightClick resultsListView
+    ListView.addValueCopyOnCopyHotKey resultsListView
 
     View.preventCursorUpDownKeyPressedEvents commandTextField
     let resultsHistory = ResultHistoryCache(100)

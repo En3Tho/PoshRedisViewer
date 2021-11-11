@@ -135,16 +135,6 @@ module rec RedisResult =
             |> Array.map toStringArray
             |> Array.concat
 
-module View =
-    let preventCursorUpDownKeyPressedEvents (view: View) =
-        view.add_KeyPress(fun keyPressEvent ->
-            match keyPressEvent.KeyEvent.Key with
-            | Key.CursorUp
-            | Key.CursorDown ->
-                keyPressEvent.Handled <- true
-            | _ -> ()
-        )
-
 module Semaphore =
     let runTask (job: Task<'a>) (semaphore: SemaphoreSlim) = task {
         do! semaphore.WaitAsync()
@@ -178,3 +168,38 @@ module StringSource =
         | "" -> source
         | filter ->
             source |> Array.filter ^ fun x -> x.Contains(filter, StringComparison.OrdinalIgnoreCase)
+
+module View =
+    let preventCursorUpDownKeyPressedEvents (view: View) =
+        view.add_KeyPress(fun keyPressEvent ->
+            match keyPressEvent.KeyEvent.Key with
+            | Key.CursorUp
+            | Key.CursorDown ->
+                keyPressEvent.Handled <- true
+            | _ -> ()
+        )
+
+module ListView =
+    let copySelectedItemTextToClipboard (listView: ListView) =
+        let source = listView.Source.ToList()
+        match source.[listView.SelectedItem].ToString() with
+        | NotNull as selectedItem ->
+            Clipboard.TrySetClipboardData(selectedItem.ToString()) |> ignore
+        | _ -> ()
+
+    let addValueCopyOnRightClick (listView: ListView) =
+        listView.add_MouseClick(fun mouseClickEvent ->
+        if listView.HasFocus then
+            match mouseClickEvent.MouseEvent.Flags with
+            | Enum.HasFlag MouseFlags.Button3Released ->
+                copySelectedItemTextToClipboard listView
+            | _ -> ()
+        )
+
+    let addValueCopyOnCopyHotKey (listView: ListView) =
+        listView.add_KeyDown(fun keyDownEvent ->
+            match keyDownEvent.KeyEvent.Key with
+            | Key.CopyCommand ->
+                copySelectedItemTextToClipboard listView
+            | _ -> ()
+        )

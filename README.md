@@ -16,6 +16,7 @@ It allows you to:
 Copy and Paste is allowed:
 - Windows: Ctrl+C | Ctrl+V
 - Linux: Ctrl+Y | Ctrl+V
+- Keys and Results list views support copying by right-clicking on them
 
 Query, command and filter execution require "Enter" key press.
 
