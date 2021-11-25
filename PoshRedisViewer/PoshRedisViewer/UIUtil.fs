@@ -146,10 +146,16 @@ module Semaphore =
 
 let ustr str = icast<string, ustring> str
 module Ustr =
-    let toString (ustr: ustring) =
-        match ustr with
+
+    let toString (utext: ustring) =
+        match utext with
         | null -> ""
-        | _ -> ustr.ToString()
+        | _ -> utext.ToString()
+
+    let fromString (text: string) =
+        match text with
+        | null | "" -> ustring.Empty
+        | _ -> ustr text
 
 module Key =
     let private copyCommandKey =
@@ -158,9 +164,12 @@ module Key =
         else
             Key.CtrlMask ||| Key.Y
 
+    let private pasteFromMiniClipboardKey = Key.CtrlMask ||| Key.B
+
     let private is flag (key: Key) = key |> Enum.hasFlag flag |> Option.ofBool
 
     let (|CopyCommand|_|) key = key |> is copyCommandKey
+    let (|PasteFromMiniClipboardCommand|_|) key = key |> is pasteFromMiniClipboardKey
 
 module StringSource =
     let filter filter (source: string[]) =
@@ -170,7 +179,7 @@ module StringSource =
             source |> Array.filter ^ fun x -> x.Contains(filter, StringComparison.OrdinalIgnoreCase)
 
 module View =
-    let preventCursorUpDownKeyPressedEvents (view: View) =
+    let preventCursorUpDownKeyPressedEvents (view: #View) =
         view.add_KeyPress(fun keyPressEvent ->
             match keyPressEvent.KeyEvent.Key with
             | Key.CursorUp
@@ -178,13 +187,24 @@ module View =
                 keyPressEvent.Handled <- true
             | _ -> ()
         )
+        view
+
+module Clipboard =
+    let mutable private miniClipboard = ""
+    let saveToClipboard = fun text ->
+        let text = if Object.ReferenceEquals(text, null) then "" else text.ToString()
+        Clipboard.TrySetClipboardData text |> ignore
+        miniClipboard <- text
+
+    let getFromMiniClipboard() = miniClipboard
+
 
 module ListView =
-    let copySelectedItemTextToClipboard (listView: ListView) =
+    let private copySelectedItemTextToClipboard (listView: ListView) =
         let source = listView.Source.ToList()
         match source.[listView.SelectedItem].ToString() with
         | NotNull as selectedItem ->
-            Clipboard.TrySetClipboardData(selectedItem.ToString()) |> ignore
+            selectedItem |> Clipboard.saveToClipboard
         | _ -> ()
 
     let addValueCopyOnRightClick (listView: ListView) =
@@ -195,6 +215,7 @@ module ListView =
                 copySelectedItemTextToClipboard listView
             | _ -> ()
         )
+        listView
 
     let addValueCopyOnCopyHotKey (listView: ListView) =
         listView.add_KeyDown(fun keyDownEvent ->
@@ -203,3 +224,42 @@ module ListView =
                 copySelectedItemTextToClipboard listView
             | _ -> ()
         )
+        listView
+
+module TextField =
+
+    let addCopyPasteSupportWithMiniClipboard (textField: TextField) =
+        textField.add_KeyDown(fun keyDownEvent ->
+            match keyDownEvent.KeyEvent.Key with
+            | Key.CopyCommand ->
+                textField.SelectedText |> Clipboard.saveToClipboard
+            | Key.PasteFromMiniClipboardCommand ->
+                let newText, newCursorPosition =
+                    let clipboardText = Clipboard.getFromMiniClipboard()
+
+                    match textField.SelectedLength, textField.CursorPosition with
+                    | 0, 0 ->
+                        clipboardText |> Ustr.fromString,
+                        clipboardText.Length
+
+                    | 0, cursor ->
+                        let text = textField.Text |> Ustr.toString
+                        let left = text.Substring(0, cursor)
+                        let right = text.Substring(cursor)
+
+                        left + clipboardText + right |> Ustr.fromString,
+                        textField.CursorPosition + clipboardText.Length
+
+                    | _, cursor ->
+                        let text = textField.Text
+                        text.Replace(textField.SelectedText, clipboardText |> Ustr.fromString, maxReplacements = 1),
+                        if textField.SelectedStart < cursor then
+                            textField.SelectedStart + clipboardText.Length
+                        else
+                            cursor + clipboardText.Length
+
+                textField.Text <- newText
+                textField.CursorPosition <- newCursorPosition
+            | _ -> ()
+        )
+        textField

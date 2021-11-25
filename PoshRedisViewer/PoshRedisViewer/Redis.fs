@@ -4,7 +4,7 @@ open System
 open System.Collections.Generic
 open En3Tho.FSharp.ComputationExpressions.Tasks
 open StackExchange.Redis
-open En3Tho.FSharp.Extensions.Core
+open En3Tho.FSharp.Extensions
 
 type StackExchangeRedisResult = RedisResult
 
@@ -19,7 +19,8 @@ module AsyncEnumerable =
             match! enumerator.MoveNextAsync() with
             | true ->
                 result.Add enumerator.Current
-            | _ -> goNext <- false
+            | _ ->
+                goNext <- false
         return result
     }
 
@@ -117,12 +118,7 @@ module RedisReader =
     let getKeyType (multiplexer: IConnectionMultiplexer) database (key: string) = task {
         let key = RedisKey key
         let database = multiplexer.GetDatabase database
-        try
-            let! keyType = database.KeyTypeAsync key
-            return Ok keyType
-        with
-        | exn ->
-            return Error exn
+        return! database.KeyTypeAsync(key).AsResult()
     }
 
     let getKeyValue (multiplexer: IConnectionMultiplexer) database (key: string) = task {
@@ -139,6 +135,7 @@ module RedisReader =
                         { Field = toString hashField.Name; Value = toString hashField.Value }
                     |> Seq.toArray
                     |> RedisHash
+
             | RedisType.Set ->
                 let! setMembers = database.SetMembersAsync key
                 return
@@ -146,11 +143,13 @@ module RedisReader =
                     |> Seq.map toString
                     |> Seq.toArray
                     |> RedisSet
+
             | RedisType.String ->
                 let! str = database.StringGetAsync key
                 return
                     toString str
                     |> RedisString
+
             | RedisType.List ->
                 let! listMembers = database.ListRangeAsync key
                 return
@@ -158,6 +157,7 @@ module RedisReader =
                     |> Seq.mapi (fun i value -> { Index = i; Value = toString value })
                     |> Seq.toArray
                     |> RedisList
+
             | RedisType.SortedSet ->
                 let! setMembers = database.SortedSetScanAsync(key) |> AsyncEnumerable.toResizeArray
                 return
@@ -166,12 +166,16 @@ module RedisReader =
                         { Score = setMember.Score; Value = toString setMember.Element }
                     |> Seq.toArray
                     |> RedisSortedSet
+
              | RedisType.None ->
                 return RedisNone
+
             | RedisType.Stream ->
                 return RedisError (NotSupportedException("Redis streams are not supported"))
+
             | RedisType.Unknown ->
                 return RedisError (Exception("Unknown entity"))
+
             | _  ->
                 return RedisError (Exception("Unrecognized enum value"))
         | Error exn ->
