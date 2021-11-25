@@ -17,6 +17,7 @@ Copy and Paste is allowed:
 - Windows: Ctrl+C | Ctrl+V
 - Linux: Ctrl+Y | Ctrl+V
 - Keys and Results list views support copying by right-clicking on them
+- In case when OS clipboard (clip/xclip) is not available, pasting from internal mini-clipboard is available with Ctrl+B combination
 
 Query, command and filter execution require "Enter" key press.
 
