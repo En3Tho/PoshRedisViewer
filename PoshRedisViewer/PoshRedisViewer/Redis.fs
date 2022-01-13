@@ -2,6 +2,9 @@
 
 open System
 open System.Collections.Generic
+open System.Diagnostics
+open System.Threading
+open System.Threading.Tasks
 open En3Tho.FSharp.ComputationExpressions.Tasks
 open StackExchange.Redis
 open En3Tho.FSharp.Extensions
@@ -23,6 +26,70 @@ module AsyncEnumerable =
                 goNext <- false
         return result
     }
+
+    type [<Struct>] private EmptyAsyncEnumerator<'a> =
+        interface IAsyncEnumerator<'a> with
+            member this.Current = invalidOp "Current should not be used from async enumerable"
+            member this.DisposeAsync() = ValueTask()
+            member this.MoveNextAsync() = ValueTask.FromResult(false)
+
+    type private EmptyAsyncEnumerable<'a>() =
+        static let cachedEnumerator = EmptyAsyncEnumerator<'a>() :> IAsyncEnumerator<'a>
+        static let cachedInstance = EmptyAsyncEnumerable<'a>()
+        static member Empty = cachedInstance
+
+        interface IAsyncEnumerable<'a> with
+            member this.GetAsyncEnumerator(_) = cachedEnumerator
+
+    type private MapAsyncEnumerableEnumerator<'a, 'b>(source1: IAsyncEnumerable<'a>, map: 'a -> 'b) =
+        let enumerator = source1.GetAsyncEnumerator()
+
+        interface IAsyncEnumerator<'b> with
+            member this.Current = enumerator.Current |> map
+            member this.DisposeAsync() = enumerator.DisposeAsync()
+            member this.MoveNextAsync() = enumerator.MoveNextAsync()
+
+    type private AppendAsyncEnumerableEnumerator<'a>(source1: IAsyncEnumerable<'a>, source2: IAsyncEnumerable<'a>, cancellationToken: CancellationToken) =
+        let mutable enumerator = source1.GetAsyncEnumerator()
+        let mutable enumerator2 = source2.GetAsyncEnumerator()
+        let mutable state = 0
+
+        interface IAsyncEnumerator<'a> with
+            member this.Current =
+                match state with
+                | 0 ->
+                    enumerator.Current
+                | _ ->
+                    enumerator2.Current
+
+            member this.DisposeAsync() = ValueTask.FromTask(task {
+                do! enumerator.DisposeAsync()
+                do! enumerator2.DisposeAsync()
+            } :> Task)
+
+            member this.MoveNextAsync() = vtask {
+                cancellationToken.ThrowIfCancellationRequested()
+                match state with
+                | 0 ->
+                    match! enumerator.MoveNextAsync() with
+                    | true -> return true
+                    | _ ->
+                        state <- 1
+                        return! enumerator2.MoveNextAsync()
+                | _ ->
+                    return! enumerator2.MoveNextAsync()
+            }
+
+    type private AppendAsyncEnumerable<'a>(source1: IAsyncEnumerable<'a>, source2: IAsyncEnumerable<'a>) =
+        interface IAsyncEnumerable<'a> with
+            member this.GetAsyncEnumerator(cancellationToken) = AppendAsyncEnumerableEnumerator<'a>(source1, source2, cancellationToken)
+
+    let empty<'a>() = EmptyAsyncEnumerable<'a>.Empty :> IAsyncEnumerable<'a>
+
+    let append source1 source2 =
+        AppendAsyncEnumerable<'a>(source1, source2) :> IAsyncEnumerable<'a>
+
+    let map map source = { new IAsyncEnumerable<'b> with member _.GetAsyncEnumerator(_) = MapAsyncEnumerableEnumerator<'a, 'b>(source, map) }
 
 type RedisHashMember = {
     Field: string
@@ -76,7 +143,36 @@ module RedisResult =
         | _ ->
             RedisError (Exception("Unknown type of Enum"))
 
+type KeySearchDatabase =
+    | Single of Database: int
+    | Range of From: int * To: int
+
+module KeyFormatter =
+    let getFormattedKeyString database redisKey = $"{database}. {toString redisKey}"
+
+    let getDatabaseFromHeader (formattedKey: string) =
+        let indexOfDot = formattedKey.IndexOf('.')
+        match indexOfDot with
+        | -1 ->
+            Debug.Fail("Should not be happening")
+            0
+        | _ ->
+            Int32.Parse(formattedKey.AsSpan(0, indexOfDot))
+
+    let trimDatabaseHeader (formattedKey: string) =
+        let indexOfDot = formattedKey.IndexOf('.')
+        match indexOfDot with
+        | -1 ->
+            Debug.Fail("Should not be happening")
+            formattedKey
+        | _ ->
+            formattedKey.Substring(indexOfDot + 2)
+
+    let getDatabaseAndOriginalKeyFromFormattedKeyString (formattedKey: string) =
+        getDatabaseFromHeader formattedKey, trimDatabaseHeader formattedKey
+
 module RedisReader =
+
     let connect (user: string option) (password: string option) (endPoint: string) = task {
         let connectionOptions = ConfigurationOptions()
         connectionOptions.EndPoints.Add endPoint
@@ -87,14 +183,29 @@ module RedisReader =
         return! ConnectionMultiplexer.ConnectAsync(connectionOptions)
     }
 
-    let getKeys (multiplexer: IConnectionMultiplexer) database (pattern: string) = task {
+    let getKeys (multiplexer: IConnectionMultiplexer) (database: KeySearchDatabase) (pattern: string) = task {
         try
             let server = multiplexer.GetServer(multiplexer.Configuration)
-            let! keys = server.KeysAsync(database, RedisValue(pattern)) |> AsyncEnumerable.toResizeArray
+
+            let getKeys database =
+                server.KeysAsync(database, RedisValue(pattern))
+                |> AsyncEnumerable.map (KeyFormatter.getFormattedKeyString database)
+
+            let! keys =
+                match database with
+                | Single database ->
+                    getKeys database
+                | Range(from, to') ->
+                    seq {
+                        for database = from to to' do
+                            getKeys database
+                    }
+                    |> Seq.fold AsyncEnumerable.append (AsyncEnumerable.empty())
+
+                |> AsyncEnumerable.toResizeArray
+
             return
-                keys
-                |> Seq.map toString
-                |> Seq.toArray
+                keys.ToArray()
                 |> RedisSet
         with
         | e ->

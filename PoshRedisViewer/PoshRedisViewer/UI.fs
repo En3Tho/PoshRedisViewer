@@ -24,7 +24,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
     )
 
     let keyQueryFrameView = new FrameView(ustr "KeyQuery",
-        Width = Dim.Percent(70.f),
+        Width = Dim.Percent(60.f),
         Height = Dim.Sized 3
     )
 
@@ -48,16 +48,21 @@ let runApp(multiplexer: IConnectionMultiplexer) =
 
     let dbPickerFrameView = new FrameView(ustr "DB",
         X = Pos.Right keyQueryFilterFrameView,
-        Width = Dim.Percent(5.f),
+        Width = Dim.Percent(15.f),
         Height = Dim.Sized 3
     )
 
     let dbPickerComboBox = new ComboBox(ustr "0",
         X = Pos.Left dbPickerFrameView + Pos.At 1,
         Y = Pos.Top dbPickerFrameView + Pos.At 1,
-        Width = Dim.Width dbPickerFrameView - Dim.Sized 2,
+        Width = Dim.Width dbPickerFrameView - Dim.Sized 8,
         Height = Dim.Sized 16,
         ReadOnly = true
+    )
+
+    let dbPickerCheckBox = new CheckBox(ustr "All",
+        X = Pos.Right dbPickerComboBox + Pos.At 1,
+        Y = Pos.Top dbPickerComboBox
     )
 
     dbPickerComboBox.SetSource([|
@@ -142,7 +147,12 @@ let runApp(multiplexer: IConnectionMultiplexer) =
             match keyDownEvent.KeyEvent.Key with
             | Key.Enter ->
                semaphore |> Semaphore.runTask ^ task {
-                    let database = dbPickerComboBox.SelectedItem
+                    let database =
+                        if dbPickerCheckBox.Checked then
+                            KeySearchDatabase.Range (0, 15)
+                        else
+                            KeySearchDatabase.Single dbPickerComboBox.SelectedItem
+
                     let pattern = keyQueryTextField.Text.ToString()
                     keysFrameView.Title <- ustr "Keys (processing)"
 
@@ -189,16 +199,15 @@ let runApp(multiplexer: IConnectionMultiplexer) =
 
     let mutable resultsFromKeyQuery = ValueSome [||]
     keysListView
-    |> ListView.addValueCopyOnRightClick
-    |> ListView.addValueCopyOnCopyHotKey
+    |> ListView.addValueCopyOnRightClick KeyFormatter.trimDatabaseHeader
+    |> ListView.addValueCopyOnCopyHotKey KeyFormatter.trimDatabaseHeader
     |> fun keysListView ->
         keysListView.add_SelectedItemChanged(fun selectedItemChangedEvent ->
             semaphore |> Semaphore.runTask ^ task {
                 match selectedItemChangedEvent.Value with
                 | null -> ()
                 | value ->
-                    let key = value.ToString()
-                    let database = dbPickerComboBox.SelectedItem
+                    let database, key = value.ToString() |> KeyFormatter.getDatabaseAndOriginalKeyFromFormattedKeyString
                     resultsFrameView.Title <- ustr "Results (processing)"
 
                     let! keyValue = key |> RedisReader.getKeyValue multiplexer database
@@ -211,8 +220,8 @@ let runApp(multiplexer: IConnectionMultiplexer) =
         )
 
     resultsListView
-    |> ListView.addValueCopyOnRightClick
-    |> ListView.addValueCopyOnCopyHotKey
+    |> ListView.addValueCopyOnRightClick id
+    |> ListView.addValueCopyOnCopyHotKey id
     |> ignore
 
     let resultsHistory = ResultHistoryCache(100)
@@ -286,6 +295,7 @@ let runApp(multiplexer: IConnectionMultiplexer) =
             }
             dbPickerFrameView
             dbPickerComboBox
+            dbPickerCheckBox
             keysFrameView {
                 keysListView
             }
@@ -301,4 +311,5 @@ let runApp(multiplexer: IConnectionMultiplexer) =
         }
     } |> fun top ->
         window.Subviews.[0].BringSubviewToFront(dbPickerComboBox)
+        window.Subviews.[0].BringSubviewToFront(dbPickerCheckBox)
         top |> Application.Run

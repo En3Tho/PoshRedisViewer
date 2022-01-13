@@ -191,7 +191,7 @@ module View =
 
 module Clipboard =
     let mutable private miniClipboard = ""
-    let saveToClipboard = fun text ->
+    let saveToClipboard text =
         let text = if Object.ReferenceEquals(text, null) then "" else text.ToString()
         Clipboard.TrySetClipboardData text |> ignore
         miniClipboard <- text
@@ -200,28 +200,30 @@ module Clipboard =
 
 
 module ListView =
-    let private copySelectedItemTextToClipboard (listView: ListView) =
+    let private copySelectedItemTextToClipboard textMapper (listView: ListView) =
         let source = listView.Source.ToList()
         match source.[listView.SelectedItem].ToString() with
         | NotNull as selectedItem ->
-            selectedItem |> Clipboard.saveToClipboard
+            selectedItem
+            |> textMapper
+            |> Clipboard.saveToClipboard
         | _ -> ()
 
-    let addValueCopyOnRightClick (listView: ListView) =
+    let addValueCopyOnRightClick textMapper (listView: ListView) =
         listView.add_MouseClick(fun mouseClickEvent ->
         if listView.HasFocus then
             match mouseClickEvent.MouseEvent.Flags with
             | Enum.HasFlag MouseFlags.Button3Released ->
-                copySelectedItemTextToClipboard listView
+                copySelectedItemTextToClipboard textMapper listView
             | _ -> ()
         )
         listView
 
-    let addValueCopyOnCopyHotKey (listView: ListView) =
+    let addValueCopyOnCopyHotKey textMapper (listView: ListView) =
         listView.add_KeyDown(fun keyDownEvent ->
             match keyDownEvent.KeyEvent.Key with
             | Key.CopyCommand ->
-                copySelectedItemTextToClipboard listView
+                copySelectedItemTextToClipboard textMapper listView
             | _ -> ()
         )
         listView
