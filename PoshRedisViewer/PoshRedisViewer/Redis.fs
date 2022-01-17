@@ -17,6 +17,7 @@ module AsyncEnumerable =
     let toResizeArray (enumerable: IAsyncEnumerable<'a>) = vtask {
         let result = ResizeArray()
         let enumerator = enumerable.GetAsyncEnumerator()
+
         let mutable goNext = true
         while goNext do
             match! enumerator.MoveNextAsync() with
@@ -24,7 +25,30 @@ module AsyncEnumerable =
                 result.Add enumerator.Current
             | _ ->
                 goNext <- false
+
         return result
+    }
+
+    let dispose2 (enumerator1: #IAsyncEnumerator<'a>)(enumerator2: #IAsyncEnumerator<'b>) = unitvtask {
+        let mutable exn1 = null
+        let mutable exn2 = null
+        try
+            do! enumerator1.DisposeAsync()
+        with e ->
+            exn1 <- e
+        try
+            do! enumerator2.DisposeAsync()
+        with e ->
+            exn2 <- e
+
+        match exn1, exn2 with
+        | null, null ->
+            ()
+        | exn, null
+        | null, exn ->
+            Exception.reraise exn
+        | _ ->
+            raise ^ AggregateException(exn1, exn2)
     }
 
     type [<Struct>] private EmptyAsyncEnumerator<'a> =
@@ -62,10 +86,7 @@ module AsyncEnumerable =
                 | _ ->
                     enumerator2.Current
 
-            member this.DisposeAsync() = ValueTask.FromTask(task {
-                do! enumerator.DisposeAsync()
-                do! enumerator2.DisposeAsync()
-            } :> Task)
+            member this.DisposeAsync() = dispose2 enumerator enumerator2
 
             member this.MoveNextAsync() = vtask {
                 cancellationToken.ThrowIfCancellationRequested()
@@ -84,7 +105,7 @@ module AsyncEnumerable =
         interface IAsyncEnumerable<'a> with
             member this.GetAsyncEnumerator(cancellationToken) = AppendAsyncEnumerableEnumerator<'a>(source1, source2, cancellationToken)
 
-    let empty<'a>() = EmptyAsyncEnumerable<'a>.Empty :> IAsyncEnumerable<'a>
+    let empty<'a> = EmptyAsyncEnumerable<'a>.Empty :> IAsyncEnumerable<'a>
 
     let append source1 source2 =
         AppendAsyncEnumerable<'a>(source1, source2) :> IAsyncEnumerable<'a>
@@ -188,7 +209,7 @@ module RedisReader =
             let server = multiplexer.GetServer(multiplexer.Configuration)
 
             let getKeys database =
-                server.KeysAsync(database, RedisValue(pattern))
+                server.KeysAsync(database, RedisValue pattern)
                 |> AsyncEnumerable.map (KeyFormatter.getFormattedKeyString database)
 
             let! keys =
@@ -200,7 +221,7 @@ module RedisReader =
                         for database = from to to' do
                             getKeys database
                     }
-                    |> Seq.fold AsyncEnumerable.append (AsyncEnumerable.empty())
+                    |> Seq.fold AsyncEnumerable.append AsyncEnumerable.empty
 
                 |> AsyncEnumerable.toResizeArray
 
