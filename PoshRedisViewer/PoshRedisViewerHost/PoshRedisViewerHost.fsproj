@@ -14,4 +14,8 @@
         <ProjectReference Include="..\PoshRedisViewer\PoshRedisViewer.fsproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Remove="FSharp.Core" />
+    </ItemGroup>
+
 </Project>
