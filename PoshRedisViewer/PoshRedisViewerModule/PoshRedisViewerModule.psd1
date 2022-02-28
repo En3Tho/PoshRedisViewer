@@ -12,7 +12,7 @@
 RootModule = 'PoshRedisViewerModule.dll'
 
 # Version number of this module.
-ModuleVersion = '0.0.7'
+ModuleVersion = '0.0.8'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -30,7 +30,7 @@ CompanyName = 'Igor Bagdmamyan'
 Copyright = '(c) Igor Bagdmamyan. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'A simple Redis viewer capable of readonly operations'
+Description = 'A simple Redis viewer capable of reading values, issuing commands, filtering fetched data in memory, keeping history'
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '7.1.3'

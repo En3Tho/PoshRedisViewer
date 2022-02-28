@@ -12,6 +12,7 @@ open En3Tho.FSharp.Extensions
 type StackExchangeRedisResult = RedisResult
 
 let inline toString x = x.ToString()
+let inline toStringOrEmpty x = if Object.ReferenceEquals(x, null) then "" else x.ToString()
 
 module AsyncEnumerable =
     let toResizeArray (enumerable: IAsyncEnumerable<'a>) = vtask {
@@ -286,7 +287,8 @@ module RedisReader =
                 let! listMembers = database.ListRangeAsync key
                 return
                     listMembers
-                    |> Seq.mapi (fun i value -> { Index = i; Value = toString value })
+                    |> Seq.mapi ^ fun i value ->
+                        { Index = i; Value = toString value }
                     |> Seq.toArray
                     |> RedisList
 

@@ -20,6 +20,7 @@ type KeyQueryResultState = {
     Keys: string[]
     FromHistory: bool
     Filtered: bool
+    Time: DateTimeOffset
 }
 
 module KeyQueryResultState =
@@ -29,6 +30,7 @@ module KeyQueryResultState =
                 toString result.Keys.Length
                 if result.FromHistory then "From History"
                 if result.Filtered then "Filtered"
+                result.Time.ToString()
             } |> String.concat ", "
         $"Keys ({flags})"
 
@@ -37,6 +39,7 @@ type ResultsState = {
     Result: string[]
     FromHistory: bool
     Filtered: bool
+    Time: DateTimeOffset
 }
 
 module ResultsState =
@@ -46,6 +49,7 @@ module ResultsState =
                 result.ResultType
                 if result.FromHistory then "From History"
                 if result.Filtered then "Filtered"
+                result.Time.ToString()
             } |> String.concat ", "
 
         $"Results ({flags})"
@@ -127,7 +131,7 @@ module rec RedisResult =
             strings
         | RedisSortedSet members ->
             members
-            |> Array.map ^ fun member' -> $"Score: {member'.Score} | Value : {member'.Value}"
+            |> Array.map ^ fun member' -> $"Score: {member'.Score} | Value: {member'.Value}"
         | RedisStream ->
             [| "RedisStream is not supported" |]
         | RedisMultiResult values ->
@@ -136,10 +140,10 @@ module rec RedisResult =
             |> Array.concat
 
 module Semaphore =
-    let runTask (job: Task<'a>) (semaphore: SemaphoreSlim) = task {
+    let runTask (taskFactory: unit -> Task<'a>) (semaphore: SemaphoreSlim) = task {
         do! semaphore.WaitAsync()
         try
-            return! job
+            return! taskFactory()
         finally
             semaphore.Release() |> ignore
     }
@@ -200,14 +204,19 @@ module Clipboard =
 
 
 module ListView =
-    let private copySelectedItemTextToClipboard textMapper (listView: ListView) =
-        let source = listView.Source.ToList()
-        match source.[listView.SelectedItem].ToString() with
-        | NotNull as selectedItem ->
-            selectedItem
-            |> textMapper
-            |> Clipboard.saveToClipboard
-        | _ -> ()
+    let private copySelectedItemTextToClipboard (textMapper: string -> string) (listView: ListView) =
+        let source =
+            match listView.Source with
+            | NotNull & source -> source.ToList()
+            | _ -> [||]
+
+        if source.Count > 0 then
+            match source.[listView.SelectedItem].ToString() with
+            | NotNull & selectedItem ->
+                selectedItem
+                |> textMapper
+                |> Clipboard.saveToClipboard
+            | _ -> ()
 
     let addValueCopyOnRightClick textMapper (listView: ListView) =
         listView.add_MouseClick(fun mouseClickEvent ->
