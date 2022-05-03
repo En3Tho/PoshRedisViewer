@@ -21,13 +21,13 @@ ModuleVersion = '0.0.8'
 GUID = '0c79ae41-ea88-4f75-94f4-17a31572e263'
 
 # Author of this module
-Author = 'Igor Bagdmamyan'
+Author = 'Igor Bagdamyan'
 
 # Company or vendor of this module
-CompanyName = 'Igor Bagdmamyan'
+CompanyName = 'Igor Bagdamyan'
 
 # Copyright statement for this module
-Copyright = '(c) Igor Bagdmamyan. All rights reserved.'
+Copyright = '(c) Igor Bagdamyan. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'A simple Redis viewer capable of reading values, issuing commands, filtering fetched data in memory, keeping history'
