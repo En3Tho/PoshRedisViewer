@@ -4,9 +4,11 @@ open System
 open System.ComponentModel
 open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
+open System.Text.RegularExpressions
 open System.Threading
 open System.Threading.Tasks
 open En3Tho.FSharp.Extensions
+open En3Tho.FSharp.ComputationExpressions.SStringBuilderBuilder
 open NStack
 open PoshRedisViewer.Redis
 open Terminal.Gui
@@ -139,6 +141,27 @@ module rec RedisResult =
             |> Array.map toStringArray
             |> Array.concat
 
+    let getInformationText (value: RedisResult) =
+        match value with
+        | RedisString _ ->
+            "RedisString"
+        | RedisList strings ->
+            $"RedisList ({strings.Length})"
+        | RedisError _ ->
+            "RedisError"
+        | RedisHash members ->
+            $"RedisHash ({members.Length})"
+        | RedisNone ->
+            "RedisNone"
+        | RedisSet strings ->
+            $"RedisSet ({strings.Length})"
+        | RedisSortedSet members ->
+            $"RedisSortedSet ({members.Length})"
+        | RedisStream ->
+            "RedisStream"
+        | RedisMultiResult values ->
+            "RedisMultiResult"
+
 module Semaphore =
     let runTask (taskFactory: unit -> Task<'a>) (semaphore: SemaphoreSlim) = task {
         do! semaphore.WaitAsync()
@@ -175,12 +198,23 @@ module Key =
     let (|CopyCommand|_|) key = key |> is copyCommandKey
     let (|PasteFromMiniClipboardCommand|_|) key = key |> is pasteFromMiniClipboardKey
 
+[<RequireQualifiedAccess>]
+type FilterType =
+    | Contains
+    | Regex
+
+module Filter =
+    let stringContains (pattern: string) =
+        fun (value: string) ->
+            value.Contains(pattern, StringComparison.OrdinalIgnoreCase)
+
+    let regex (pattern: string) =
+        let regex = Regex(pattern, RegexOptions.Compiled)
+        fun (value: string) ->
+            regex.IsMatch(value)
 module StringSource =
     let filter filter (source: string[]) =
-        match filter with
-        | "" -> source
-        | filter ->
-            source |> Array.filter ^ fun x -> x.Contains(filter, StringComparison.OrdinalIgnoreCase)
+        source |> Array.filter filter
 
 module View =
     let preventCursorUpDownKeyPressedEvents (view: #View) =

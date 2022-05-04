@@ -6,13 +6,13 @@ open PoshRedisViewer.Redis
 
 [<EntryPoint>]
 let main argv =
-
-    "localhost:6379"
-    |> RedisReader.connect None None
-    |> Task.RunSynchronously
-    |> UI.runApp
-    UI.shutdown()
-
-    if not Console.IsInputRedirected then
-        Console.Write("\u001b[?1h\u001b[?1003l") // fixes an issue with certain terminals, same as ocgv
+    try
+        "localhost:6379"
+        |> RedisReader.connect None None
+        |> Task.RunSynchronously
+        |> App.run
+        |> App.shutdown
+    finally
+        if not Console.IsInputRedirected then
+            Console.Write("\u001b[?1h\u001b[?1003l") // fixes an issue with certain terminals, same as ocgv
     0

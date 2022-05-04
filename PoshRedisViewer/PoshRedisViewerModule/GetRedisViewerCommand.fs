@@ -32,5 +32,5 @@ type GetRedisViewerCommand() =
         connectionString
         |> RedisReader.connect user password
         |> Task.RunSynchronously
-        |> UI.runApp
-        |> UI.shutdown
+        |> App.run
+        |> App.shutdown
