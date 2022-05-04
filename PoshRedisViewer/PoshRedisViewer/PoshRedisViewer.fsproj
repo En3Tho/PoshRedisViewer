@@ -13,11 +13,13 @@
         <Compile Include="Redis.fs" />
         <Compile Include="UIUtil.fs" />
         <Compile Include="UI.fs" />
+        <Compile Include="UILogic.fs" />
+        <Compile Include="App.fs" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="En3Tho.FSharp.Extensions" Version="1.1.4" />
-        <PackageReference Include="StackExchange.Redis" Version="2.2.88" />
+        <PackageReference Include="En3Tho.FSharp.Extensions" Version="1.1.6" />
+        <PackageReference Include="StackExchange.Redis" Version="2.5.61" />
         <PackageReference Include="Terminal.Gui" Version="1.4.0" />
         <PackageReference Remove="FSharp.Core" />
     </ItemGroup>

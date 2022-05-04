@@ -54,7 +54,7 @@ module AsyncEnumerable =
 
     type [<Struct>] private EmptyAsyncEnumerator<'a> =
         interface IAsyncEnumerator<'a> with
-            member this.Current = invalidOp "Current should not be used from async enumerable"
+            member this.Current = invalidOp "Current should not be used with empty async enumerable"
             member this.DisposeAsync() = ValueTask()
             member this.MoveNextAsync() = ValueTask.FromResult(false)
 
