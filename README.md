@@ -41,3 +41,8 @@ or
 ```
 Get-RedisViewer "localhost:6379" -User me -Password myPassword
 ```
+
+TODO:
+- Tabs/add to favorites
+- Results filter history
+- Quick commands to change/set values

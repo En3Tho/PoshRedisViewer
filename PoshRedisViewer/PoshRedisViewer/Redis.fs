@@ -17,7 +17,7 @@ let inline toStringOrEmpty x = if Object.ReferenceEquals(x, null) then "" else x
 module AsyncEnumerable =
     let toResizeArray (enumerable: IAsyncEnumerable<'a>) = vtask {
         let result = ResizeArray()
-        let enumerator = enumerable.GetAsyncEnumerator()
+        use enumerator = enumerable.GetAsyncEnumerator()
 
         let mutable goNext = true
         while goNext do
@@ -148,22 +148,22 @@ module RedisResult =
         if redisResult.IsNull then
             RedisResult.RedisNone
         else
-        match redisResult.Type with
-        | ResultType.SimpleString ->
-            RedisString (toString redisResult)
-        | ResultType.None ->
-            RedisNone
-        | ResultType.Error ->
-            RedisError (Exception(toString redisResult))
-        | ResultType.Integer ->
-            RedisString (toString redisResult)
-        | ResultType.BulkString ->
-            RedisString (toString redisResult)
-        | ResultType.MultiBulk ->
-            let results = ecast<_, StackExchangeRedisResult[]> redisResult
-            RedisMultiResult (results |> Array.map fromStackExchangeRedisResult)
-        | _ ->
-            RedisError (Exception("Unknown type of Enum"))
+            match redisResult.Type with
+            | ResultType.SimpleString ->
+                RedisString (toString redisResult)
+            | ResultType.None ->
+                RedisNone
+            | ResultType.Error ->
+                RedisError (Exception(toString redisResult))
+            | ResultType.Integer ->
+                RedisString (toString redisResult)
+            | ResultType.BulkString ->
+                RedisString (toString redisResult)
+            | ResultType.MultiBulk ->
+                let results = ecast<_, StackExchangeRedisResult[]> redisResult
+                RedisMultiResult (results |> Array.map fromStackExchangeRedisResult)
+            | _ ->
+                RedisError (Exception("Unknown type of Enum"))
 
 type KeySearchDatabase =
     | Single of Database: int

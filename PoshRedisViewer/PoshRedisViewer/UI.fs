@@ -8,6 +8,7 @@ open PoshRedisViewer.UIUtil
 open Terminal.Gui
 
 #nowarn "0058"
+#nowarn "0760"
 
 type Views = {
     CommandFrameView: FrameView
@@ -32,41 +33,41 @@ type Views = {
 }
 
 let makeViews() =
-    let window = new Window(
+    let window = Window(
         Width = Dim.Fill(),
         Height = Dim.Fill()
     )
 
-    let keyQueryFrameView = new FrameView(ustr "KeyQuery",
+    let keyQueryFrameView = FrameView(ustr "KeyQuery",
         Width = Dim.Percent(45f),
         Height = Dim.Sized 3
     )
 
-    let keyQueryTextField = new TextField(
+    let keyQueryTextField = TextField(
         Width = Dim.Fill(),
         Height = Dim.Fill(),
         Text = ustr "*"
     )
 
-    let keyQueryFilterFrameView = new FrameView(ustr "Keys Filter",
+    let keyQueryFilterFrameView = FrameView(ustr "Keys Filter",
         X = Pos.Right keyQueryFrameView,
         Width = Dim.Percent(30f),
         Height = Dim.Sized 3
     )
 
-    let keyQueryFilterTextField = new TextField(
+    let keyQueryFilterTextField = TextField(
         Width = Dim.Fill(),
         Height = Dim.Fill(),
         Text = ustr ""
     )
 
-    let keyQueryFilterTypeFrameView = new FrameView(ustr "Filter Type",
+    let keyQueryFilterTypeFrameView = FrameView(ustr "Filter Type",
         X = Pos.Right keyQueryFilterFrameView,
         Width = Dim.Percent(10f),
         Height = Dim.Sized 3
     )
 
-    let keyQueryFilterTypeComboBox = new ComboBox(ustr "Contains",
+    let keyQueryFilterTypeComboBox = ComboBox(ustr "Contains",
         X = Pos.Left keyQueryFilterTypeFrameView + Pos.At 1,
         Y = Pos.Top keyQueryFilterTypeFrameView + Pos.At 1,
         Width = Dim.Width keyQueryFilterTypeFrameView - Dim.Sized 2,
@@ -79,13 +80,13 @@ let makeViews() =
         FilterType.Regex
     |])
 
-    let dbPickerFrameView = new FrameView(ustr "DB",
+    let dbPickerFrameView = FrameView(ustr "DB",
         X = Pos.Right keyQueryFilterTypeFrameView,
         Width = Dim.Percent(15.f),
         Height = Dim.Sized 3
     )
 
-    let dbPickerComboBox = new ComboBox(ustr "0",
+    let dbPickerComboBox = ComboBox(ustr "0",
         X = Pos.Left dbPickerFrameView + Pos.At 1,
         Y = Pos.Top dbPickerFrameView + Pos.At 1,
         Width = Dim.Width dbPickerFrameView - Dim.Sized 15,
@@ -97,53 +98,53 @@ let makeViews() =
         for i = 0 to 15 do ustr (string i)
     |])
 
-    let dbPickerCheckBox = new CheckBox(ustr "Query All",
+    let dbPickerCheckBox = CheckBox(ustr "Query All",
         X = Pos.Right dbPickerComboBox + Pos.At 1,
         Y = Pos.Top dbPickerComboBox
     )
 
-    let keysFrameView = new FrameView(ustr "Keys",
+    let keysFrameView = FrameView(ustr "Keys",
         Y = Pos.Bottom keyQueryFrameView,
         Width = Dim.Fill(),
         Height = Dim.Percent(50.f) - Dim.Sized 3
     )
 
-    let keysListView = new ListView(
+    let keysListView = ListView(
         Width = Dim.Fill(),
         Height = Dim.Fill()
     )
 
-    let resultsFrameView = new FrameView(ustr "Results",
+    let resultsFrameView = FrameView(ustr "Results",
         Y = Pos.Bottom keysFrameView,
         Width = Dim.Fill(),
         Height = Dim.Fill() - Dim.Sized 3
     )
 
-    let resultsListView = new ListView(
+    let resultsListView = ListView(
         Width = Dim.Fill(),
         Height = Dim.Fill()
     )
 
-    let commandFrameView = new FrameView(ustr "Command",
+    let commandFrameView = FrameView(ustr "Command",
         Y = Pos.Bottom resultsFrameView,
         Width = Dim.Percent(70.f),
         Height = Dim.Sized 3
     )
 
-    let commandTextField = new TextField(
+    let commandTextField = TextField(
         Width = Dim.Fill(),
         Height = Dim.Fill(),
         Text = ustring.Empty
     )
 
-    let resultFilterFrameView = new FrameView(ustr "Results Filter",
+    let resultFilterFrameView = FrameView(ustr "Results Filter",
         X = Pos.Right commandFrameView,
         Y = Pos.Bottom resultsFrameView,
         Width = Dim.Percent(30.f),
         Height = Dim.Sized 3
     )
 
-    let resultFilterTextField = new TextField(
+    let resultFilterTextField = TextField(
         Width = Dim.Fill(),
         Height = Dim.Fill(),
         Text = ustr ""

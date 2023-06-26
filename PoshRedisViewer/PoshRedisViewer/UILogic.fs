@@ -71,53 +71,53 @@ let setupViewsLogic multiplexer (views: Views) =
     |> fun keyQueryTextField ->
         keyQueryTextField.add_KeyDown (fun keyDownEvent ->
 
-           let filterSourceAndSetKeyQueryResultFromHistory keyQuery keys time =
-               keyQueryTextField.Text <- ustr keyQuery
-               updateKeyQueryFieldsWithNewState { keyQueryResultState with
-                  Keys = filterKeyQueryResult keys
-                  FromHistory = true
-                  Time = time
-               }
+            let filterSourceAndSetKeyQueryResultFromHistory keyQuery keys time =
+                keyQueryTextField.Text <- ustr keyQuery
+                updateKeyQueryFieldsWithNewState { keyQueryResultState with
+                   Keys = filterKeyQueryResult keys
+                   FromHistory = true
+                   Time = time
+                }
 
-           match keyDownEvent.KeyEvent.Key with
-           | Key.Enter ->
-              semaphore |> Semaphore.runTask ^ fun _ -> task {
-                   let database =
-                       if views.DbPickerCheckBox.Checked then
-                           KeySearchDatabase.Range (0, 15)
-                       else
-                           KeySearchDatabase.Single views.DbPickerComboBox.SelectedItem
+            match keyDownEvent.KeyEvent.Key with
+            | Key.Enter ->
+                semaphore |> Semaphore.runTask ^ fun _ -> task {
+                     let database =
+                         if views.DbPickerCheckBox.Checked then
+                             KeySearchDatabase.Range (0, 15)
+                         else
+                             KeySearchDatabase.Single views.DbPickerComboBox.SelectedItem
 
-                   let pattern = keyQueryTextField.Text.ToString()
-                   views.KeysFrameView.Title <- ustr "Keys (processing)"
+                     let pattern = keyQueryTextField.Text.ToString()
+                     views.KeysFrameView.Title <- ustr "Keys (processing)"
 
-                   let! keys =
-                       pattern
-                       |> RedisReader.getKeys multiplexer database
-                       |> Task.map RedisResult.toStringArray
+                     let! keys =
+                         pattern
+                         |> RedisReader.getKeys multiplexer database
+                         |> Task.map RedisResult.toStringArray
 
-                   let time = DateTimeOffset.Now
-                   keys |> Array.sortInPlace
-                   keyQueryHistory.Add(pattern, (keys, time))
+                     let time = DateTimeOffset.Now
+                     keys |> Array.sortInPlace
+                     keyQueryHistory.Add(pattern, (keys, time))
 
-                   updateKeyQueryFieldsWithNewState { keyQueryResultState with
-                       Keys = filterKeyQueryResult keys
-                       FromHistory = false
-                       Time = time
-                   }
-              }
-              |> ignore
-           | Key.CursorUp ->
-               match keyQueryHistory.Up() with
-               | ValueSome { Key = keyQuery; Value = source, time; } ->
-                   filterSourceAndSetKeyQueryResultFromHistory keyQuery source time
-               | _ -> ()
-           | Key.CursorDown ->
-               match keyQueryHistory.Down() with
-               | ValueSome { Key = keyQuery; Value = source, time; } ->
-                   filterSourceAndSetKeyQueryResultFromHistory keyQuery source time
-               | _ -> ()
-           | _ -> ()
+                     updateKeyQueryFieldsWithNewState { keyQueryResultState with
+                         Keys = filterKeyQueryResult keys
+                         FromHistory = false
+                         Time = time
+                     }
+                }
+                |> ignore
+            | Key.CursorUp ->
+                match keyQueryHistory.Up() with
+                | ValueSome { Key = keyQuery; Value = source, time; } ->
+                    filterSourceAndSetKeyQueryResultFromHistory keyQuery source time
+                | _ -> ()
+            | Key.CursorDown ->
+                match keyQueryHistory.Down() with
+                | ValueSome { Key = keyQuery; Value = source, time; } ->
+                    filterSourceAndSetKeyQueryResultFromHistory keyQuery source time
+                | _ -> ()
+            | _ -> ()
        )
 
     views.KeyQueryFilterTextField
@@ -131,9 +131,9 @@ let setupViewsLogic multiplexer (views: Views) =
                | ValueSome { Value = keys, time } ->
                    let filter = Ustr.toString keyQueryFilterTextField.Text
                    updateKeyQueryFieldsWithNewState { keyQueryResultState with
-                      Keys = filterKeyQueryResult keys
-                      Filtered = not ^ String.IsNullOrEmpty filter
-                      Time = time
+                       Keys = filterKeyQueryResult keys
+                       Filtered = not ^ String.IsNullOrEmpty filter
+                       Time = time
                    }
                | _ -> ()
            | _ -> ()
@@ -207,10 +207,10 @@ let setupViewsLogic multiplexer (views: Views) =
 
                    let filter = Ustr.toString views.ResultFilterTextField.Text
                    updateResultsFieldsWithNewState { resultState with
-                     Result = filterCommandResult commandResult
-                     ResultType = "Command"
-                     Filtered = not ^ String.IsNullOrEmpty filter
-                     Time = time
+                       Result = filterCommandResult commandResult
+                       ResultType = "Command"
+                       Filtered = not ^ String.IsNullOrEmpty filter
+                       Time = time
                    }
                }
                |> ignore
