@@ -11,6 +11,7 @@ ProjectSection(SolutionItems) = preProject
 	..\.gitignore = ..\.gitignore
 	..\LICENSE = ..\LICENSE
 	..\README.md = ..\README.md
+	Directory.Packages.props = Directory.Packages.props
 EndProjectSection
 EndProject
 Global

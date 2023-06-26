@@ -1,0 +1,11 @@
+﻿<Project>
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageVersion Include="En3Tho.FSharp.Extensions" Version="1.1.6" />
+        <PackageVersion Include="StackExchange.Redis" Version="2.5.61" />
+        <PackageVersion Include="Terminal.Gui" Version="1.4.0" />
+        <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.1.3" />
+    </ItemGroup>
+</Project>
