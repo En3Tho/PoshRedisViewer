@@ -25,7 +25,7 @@ let setupViewsLogic multiplexer (views: Views) =
         let filterType =
             match views.KeyQueryFilterTypeComboBox.SelectedItem with
             | 0 | 1 as idx ->
-                views.KeyQueryFilterTypeComboBox.Source.ToList().[idx] :?> FilterType
+                views.KeyQueryFilterTypeComboBox.Source.ToList()[idx] :?> FilterType
             | _ ->
                 FilterType.Contains
 

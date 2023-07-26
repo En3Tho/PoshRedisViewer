@@ -207,7 +207,8 @@ module RedisReader =
 
     let getKeys (multiplexer: IConnectionMultiplexer) (database: KeySearchDatabase) (pattern: string) = task {
         try
-            let server = multiplexer.GetServer(multiplexer.Configuration)
+            // always 1 endpoint in this version
+            let server = multiplexer.GetServer(multiplexer.GetEndPoints()[0])
 
             let getKeys database =
                 server.KeysAsync(database, RedisValue pattern)

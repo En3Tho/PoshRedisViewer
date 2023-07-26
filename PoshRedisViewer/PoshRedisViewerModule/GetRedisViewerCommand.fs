@@ -15,7 +15,10 @@ type GetRedisViewerCommand() =
     [<ValidateNotNullOrEmpty>]
     member val ConnectionString = "" with get, set
 
+    [<Parameter>]
     member val User = "" with get, set
+
+    [<Parameter>]
     member val Password = "" with get, set
 
     override this.ProcessRecord() =
