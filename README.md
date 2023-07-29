@@ -45,7 +45,7 @@ Get-RedisViewer "localhost:6379" -User me -Password myPassword
 ## Development
 1. Install power shell
 2. Clone the GitHub repository
-3. Build the repository
+3. Build the repository (if building on linux use `-r linux-x64`)
 ```
 cd PoshRedisViewer
 dotnet publish -o build -r win-x64
@@ -63,6 +63,28 @@ pwsh
 Import-Module -Name ".\build\PoshRedisViewerModule.psd1"
 ```
 
+## Testing With Redis Docker Image
+
+1. Start a new Redis via docker:
+
+```
+docker run -d --name redis-stack-server -p 6379:6379 redis/redis-stack-server:latest
+```
+
+2. Connect using PoshRedisViewer
+
+```
+Get-RedisViewer "localhost:6379"
+```
+
+3. Create a Redis key entry by clicking in the 'Command' window and enter
+```
+set fish haddock
+```
+
+4. Query the Redis to see the key by clicking in 'KeyQuery' and pressing enter
+
+![Screenshot showing query results fetched from Redis.  Key 'fish' has value 'haddock'.](./fish-haddock.png)
 
 
 TODO:
