@@ -168,10 +168,23 @@ let setupViewsLogic multiplexer (views: Views) =
            |> ignore
        )
 
+
     views.ResultsListView
     |> ListView.addValueCopyOnRightClick id
     |> ListView.addValueCopyOnCopyHotKey id
-    |> ignore
+    |> fun resultsListView ->
+        resultsListView.add_KeyDown (fun keyDownEvent ->
+           let selectedValue =
+               resultsListView.Source.ToList()[resultsListView.SelectedItem]
+
+           match keyDownEvent.KeyEvent.Key with
+           | Key.Enter ->
+               MessageBox.Query("Value",selectedValue.ToString(),"Ok")
+               |> ignore
+           | _ -> ()
+           keyDownEvent.Handled <- true
+       )
+    |> ignore    
 
     let resultsHistory = ResultHistoryCache(100)
     views.CommandTextField
