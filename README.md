@@ -42,6 +42,29 @@ or
 Get-RedisViewer "localhost:6379" -User me -Password myPassword
 ```
 
+## Development
+1. Install power shell
+2. Clone the GitHub repository
+3. Build the repository
+```
+cd PoshRedisViewer
+dotnet publish -o build -r win-x64
+```
+4. Copy the psd1 file into the build directory
+```
+cp .\PoshRedisViewerModule\PoshRedisViewerModule.psd1 .\build\
+```
+4. Start a new powershell instance (prevents stale modules sitting around etc)
+```
+pwsh
+```
+5. Import the module
+```
+Import-Module -Name ".\build\PoshRedisViewerModule.psd1"
+```
+
+
+
 TODO:
 - Tabs/add to favorites
 - Results filter history
