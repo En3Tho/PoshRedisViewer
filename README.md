@@ -42,6 +42,66 @@ or
 Get-RedisViewer "localhost:6379" -User me -Password myPassword
 ```
 
+## Development
+
+1. Install power shell
+2. Clone the GitHub repository
+
+### Testing application
+
+The easiest way to test the module is to run the PoshRedisViewerHost project
+
+```
+ cd .\PoshRedisViewer\PoshRedisViewerHost\
+ dotnet run
+```
+
+### Testing as a Powershell Module
+
+To test running as a powershell module
+
+1. Build the repository (if building on linux use `-r linux-x64`)
+```
+cd PoshRedisViewer
+dotnet publish -o .artifacts -r win-x64
+```
+2. Copy the psd1 file into the build directory
+```
+cp .\PoshRedisViewerModule\PoshRedisViewerModule.psd1 .\.artifacts\
+```
+3. Start a new powershell instance (prevents stale modules sitting around etc)
+```
+pwsh –noprofile
+```
+4. Import the module
+```
+Import-Module -Name ".\.artifacts\PoshRedisViewerModule.psd1"
+```
+
+## Testing With Redis Docker Image
+
+1. Start a new Redis via docker:
+
+```
+docker run -d --name redis-stack-server -p 6379:6379 redis/redis-stack-server:latest
+```
+
+2. Connect using PoshRedisViewer
+
+```
+Get-RedisViewer "localhost:6379"
+```
+
+3. Create a Redis key entry by clicking in the 'Command' window and enter
+```
+set fish haddock
+```
+
+4. Query the Redis to see the key by clicking in 'KeyQuery' and pressing enter
+
+![Screenshot showing query results fetched from Redis.  Key 'fish' has value 'haddock'.](./fish-haddock.png)
+
+
 TODO:
 - Tabs/add to favorites
 - Results filter history
