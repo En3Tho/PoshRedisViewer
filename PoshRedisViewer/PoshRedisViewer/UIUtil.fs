@@ -271,6 +271,22 @@ module ListView =
         )
         listView
 
+    let addDetailedViewOnEnterKey (listView: ListView) =
+        listView.add_KeyDown (fun keyDownEvent ->
+            let validIdx = listView.Source <> null && listView.SelectedItem >= 0 && listView.SelectedItem < listView.Source.Count
+        
+            if validIdx then
+                let selectedValue = listView.Source.ToList()[listView.SelectedItem]
+
+                match keyDownEvent.KeyEvent.Key with
+                | Key.Enter ->
+                    MessageBox.Query("Value",selectedValue.ToString(),"Ok")
+                    |> ignore
+                | _ -> ()
+                keyDownEvent.Handled <- true
+        )
+        listView
+
 module TextField =
 
     let addCopyPasteSupportWithMiniClipboard (textField: TextField) =

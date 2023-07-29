@@ -168,10 +168,12 @@ let setupViewsLogic multiplexer (views: Views) =
            |> ignore
        )
 
+
     views.ResultsListView
     |> ListView.addValueCopyOnRightClick id
     |> ListView.addValueCopyOnCopyHotKey id
-    |> ignore
+    |> ListView.addDetailedViewOnEnterKey
+    |> ignore    
 
     let resultsHistory = ResultHistoryCache(100)
     views.CommandTextField
