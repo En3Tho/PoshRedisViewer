@@ -43,22 +43,37 @@ Get-RedisViewer "localhost:6379" -User me -Password myPassword
 ```
 
 ## Development
+
 1. Install power shell
 2. Clone the GitHub repository
-3. Build the repository (if building on linux use `-r linux-x64`)
+
+### Testing application
+
+The easiest way to test the module is to run the PoshRedisViewerHost project
+
+```
+ cd .\PoshRedisViewer\PoshRedisViewerHost\
+ dotnet run
+```
+
+### Testing as a Powershell Module
+
+To test running as a powershell module
+
+1. Build the repository (if building on linux use `-r linux-x64`)
 ```
 cd PoshRedisViewer
 dotnet publish -o build -r win-x64
 ```
-4. Copy the psd1 file into the build directory
+2. Copy the psd1 file into the build directory
 ```
 cp .\PoshRedisViewerModule\PoshRedisViewerModule.psd1 .\build\
 ```
-4. Start a new powershell instance (prevents stale modules sitting around etc)
+3. Start a new powershell instance (prevents stale modules sitting around etc)
 ```
 pwsh
 ```
-5. Import the module
+4. Import the module
 ```
 Import-Module -Name ".\build\PoshRedisViewerModule.psd1"
 ```
