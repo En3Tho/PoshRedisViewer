@@ -63,11 +63,11 @@ To test running as a powershell module
 1. Build the repository (if building on linux use `-r linux-x64`)
 ```
 cd PoshRedisViewer
-dotnet publish -o build -r win-x64
+dotnet publish -o .artifacts -r win-x64
 ```
 2. Copy the psd1 file into the build directory
 ```
-cp .\PoshRedisViewerModule\PoshRedisViewerModule.psd1 .\build\
+cp .\PoshRedisViewerModule\PoshRedisViewerModule.psd1 .\.artifacts\
 ```
 3. Start a new powershell instance (prevents stale modules sitting around etc)
 ```
@@ -75,7 +75,7 @@ pwsh –noprofile
 ```
 4. Import the module
 ```
-Import-Module -Name ".\build\PoshRedisViewerModule.psd1"
+Import-Module -Name ".\.artifacts\PoshRedisViewerModule.psd1"
 ```
 
 ## Testing With Redis Docker Image
