@@ -15,55 +15,54 @@ let makeErrorHandler (views: Views) =
         views.ResultsListView.SetSource(exn.ToString().Split(Environment.NewLine))
         true
 
+let getFilter (views: Views) =
+    let filterType =
+        match views.KeyQueryFilterTypeComboBox.SelectedItem with
+        | 0 | 1 as idx ->
+            views.KeyQueryFilterTypeComboBox.Source.ToList()[idx] :?> FilterType
+        | _ ->
+            FilterType.Contains
+
+    match filterType with
+    | FilterType.Contains ->
+        Filter.stringContains
+    | FilterType.Regex ->
+        Filter.regex
+
+let filterBy query (views: Views) keys =
+    match query with
+    | String.NullOrWhiteSpace ->
+        keys
+    | _ ->
+        let filter = getFilter views
+        keys |> Array.filter (filter query)
+
+let filterKeyQueryResult results views =
+    let query = Ustr.toString views.KeyQueryFilterTextField.Text
+    results |> filterBy query views
+
+let filterCommandResult (views: Views) results =
+    let query = Ustr.toString views.ResultFilterTextField.Text
+    results |> filterBy query views
+
 let setupViewsLogic multiplexer (views: Views) =
 
     let semaphore = new SemaphoreSlim(1)
-
     let mutable keyQueryResultState = { KeyQueryResultState.Keys = [||]; Filtered = false; FromHistory = false; Time = DateTimeOffset() }
-
-    let getFilter() =
-        let filterType =
-            match views.KeyQueryFilterTypeComboBox.SelectedItem with
-            | 0 | 1 as idx ->
-                views.KeyQueryFilterTypeComboBox.Source.ToList()[idx] :?> FilterType
-            | _ ->
-                FilterType.Contains
-
-        match filterType with
-        | FilterType.Contains ->
-            Filter.stringContains
-        | FilterType.Regex ->
-            Filter.regex
-
-    let filterBy query keys =
-        match query with
-        | String.NullOrWhiteSpace ->
-            keys
-        | _ ->
-            let filter = getFilter()
-            keys |> StringSource.filter (filter query)
-
-    let filterKeyQueryResult results =
-        let query = Ustr.toString views.KeyQueryFilterTextField.Text
-        filterBy query results
+    let mutable resultState = { ResultsState.Result = [||]; ResultType = ""; Filtered = false; FromHistory = false; Time = DateTimeOffset() }
+    let mutable resultsFromKeyQuery = ValueSome [||]
+    let keyQueryHistory = ResultHistoryCache(100)
+    let resultsHistory = ResultHistoryCache(100)
 
     let updateKeyQueryFieldsWithNewState state =
         keyQueryResultState <- state
         views.KeysFrameView.Title <- keyQueryResultState |> KeyQueryResultState.toString |> ustr
         views.KeysListView.SetSource state.Keys
 
-    let mutable resultState = { ResultsState.Result = [||]; ResultType = ""; Filtered = false; FromHistory = false; Time = DateTimeOffset() }
-
-    let filterCommandResult results =
-        let query = Ustr.toString views.ResultFilterTextField.Text
-        filterBy query results
-
     let updateResultsFieldsWithNewState state =
         resultState <- state
         views.ResultsFrameView.Title <- state |> ResultsState.toString |> ustr
         views.ResultsListView.SetSource state.Result
-
-    let keyQueryHistory = ResultHistoryCache(100)
 
     views.KeyQueryTextField
     |> View.preventCursorUpDownKeyPressedEvents
@@ -74,7 +73,7 @@ let setupViewsLogic multiplexer (views: Views) =
             let filterSourceAndSetKeyQueryResultFromHistory keyQuery keys time =
                 keyQueryTextField.Text <- ustr keyQuery
                 updateKeyQueryFieldsWithNewState { keyQueryResultState with
-                   Keys = filterKeyQueryResult keys
+                   Keys = views |> filterKeyQueryResult keys
                    FromHistory = true
                    Time = time
                 }
@@ -101,22 +100,25 @@ let setupViewsLogic multiplexer (views: Views) =
                      keyQueryHistory.Add(pattern, (keys, time))
 
                      updateKeyQueryFieldsWithNewState { keyQueryResultState with
-                         Keys = filterKeyQueryResult keys
+                         Keys = views |> filterKeyQueryResult keys
                          FromHistory = false
                          Time = time
                      }
                 }
                 |> ignore
+
             | Key.CursorUp ->
                 match keyQueryHistory.Up() with
                 | ValueSome { Key = keyQuery; Value = source, time; } ->
                     filterSourceAndSetKeyQueryResultFromHistory keyQuery source time
                 | _ -> ()
+
             | Key.CursorDown ->
                 match keyQueryHistory.Down() with
                 | ValueSome { Key = keyQuery; Value = source, time; } ->
                     filterSourceAndSetKeyQueryResultFromHistory keyQuery source time
                 | _ -> ()
+
             | _ -> ()
        )
 
@@ -131,7 +133,7 @@ let setupViewsLogic multiplexer (views: Views) =
                | ValueSome { Value = keys, time } ->
                    let filter = Ustr.toString keyQueryFilterTextField.Text
                    updateKeyQueryFieldsWithNewState { keyQueryResultState with
-                       Keys = filterKeyQueryResult keys
+                       Keys = views |> filterKeyQueryResult keys
                        Filtered = not ^ String.IsNullOrEmpty filter
                        Time = time
                    }
@@ -141,7 +143,6 @@ let setupViewsLogic multiplexer (views: Views) =
 
     views.DbPickerComboBox |> View.preventCursorUpDownKeyPressedEvents |> ignore
 
-    let mutable resultsFromKeyQuery = ValueSome [||]
     views.KeysListView
     |> ListView.addValueCopyOnRightClick KeyFormatter.trimDatabaseHeader
     |> ListView.addValueCopyOnCopyHotKey KeyFormatter.trimDatabaseHeader
@@ -149,17 +150,18 @@ let setupViewsLogic multiplexer (views: Views) =
         keysListView.add_SelectedItemChanged (fun selectedItemChangedEvent ->
            semaphore |> Semaphore.runTask ^ fun _ -> task {
                match selectedItemChangedEvent.Value with
-               | null -> ()
+               | null ->
+                   ()
                | value ->
                    let database, key = value.ToString() |> KeyFormatter.getDatabaseAndOriginalKeyFromFormattedKeyString
                    views.ResultsFrameView.Title <- ustr "Results (processing)"
 
                    let! keyValue = key |> RedisReader.getKeyValue multiplexer database
-                   let result = keyValue |> RedisResult.toStringArray
+                   let results = keyValue |> RedisResult.toStringArray
 
-                   resultsFromKeyQuery <- ValueSome result
+                   resultsFromKeyQuery <- ValueSome results
                    updateResultsFieldsWithNewState { resultState with
-                       Result = filterCommandResult result
+                       Result = results |> filterCommandResult views
                        ResultType = RedisResult.getInformationText keyValue
                        FromHistory = false
                        Time = DateTimeOffset.Now
@@ -168,14 +170,12 @@ let setupViewsLogic multiplexer (views: Views) =
            |> ignore
        )
 
-
     views.ResultsListView
     |> ListView.addValueCopyOnRightClick id
     |> ListView.addValueCopyOnCopyHotKey id
     |> ListView.addDetailedViewOnEnterKey
-    |> ignore    
+    |> ignore
 
-    let resultsHistory = ResultHistoryCache(100)
     views.CommandTextField
     |> View.preventCursorUpDownKeyPressedEvents
     |> TextField.addCopyPasteSupportWithMiniClipboard
@@ -185,7 +185,7 @@ let setupViewsLogic multiplexer (views: Views) =
            let filterSourceAndSetCommandResultFromHistory command commandResult time =
                commandTextField.Text <- ustr command
                updateResultsFieldsWithNewState { resultState with
-                   Result = filterCommandResult commandResult
+                   Result = commandResult |> filterCommandResult views
                    ResultType = "Command"
                    FromHistory = true
                    Time = time
@@ -209,23 +209,26 @@ let setupViewsLogic multiplexer (views: Views) =
 
                    let filter = Ustr.toString views.ResultFilterTextField.Text
                    updateResultsFieldsWithNewState { resultState with
-                       Result = filterCommandResult commandResult
+                       Result = commandResult |> filterCommandResult views
                        ResultType = "Command"
                        Filtered = not ^ String.IsNullOrEmpty filter
                        Time = time
                    }
                }
                |> ignore
+
            | Key.CursorUp ->
                match resultsHistory.Up() with
                | ValueSome { Key = command; Value = results, time } ->
                    filterSourceAndSetCommandResultFromHistory command results time
                | _ -> ()
+
            | Key.CursorDown ->
                match resultsHistory.Down() with
                | ValueSome { Key = command; Value = results, time } ->
                    filterSourceAndSetCommandResultFromHistory command results time
                | _ -> ()
+
            | _ -> ()
            keyDownEvent.Handled <- true
        )
@@ -242,7 +245,7 @@ let setupViewsLogic multiplexer (views: Views) =
                | _, ValueSome { Value = commandResult, _ } ->
                    let filter = Ustr.toString resultFilterTextField.Text
                    updateResultsFieldsWithNewState { resultState with
-                       Result = filterCommandResult commandResult
+                       Result = commandResult |> filterCommandResult views
                        Filtered = not ^ String.IsNullOrEmpty filter
                    }
                | _ -> ()

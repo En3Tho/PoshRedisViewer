@@ -239,8 +239,8 @@ module RedisReader =
         try
             let database = multiplexer.GetDatabase database
             let commandAndArgs = command.Split(" ", StringSplitOptions.RemoveEmptyEntries)
-            let command = commandAndArgs.[0]
-            let args = commandAndArgs.[1..] |> Array.map box
+            let command = commandAndArgs[0]
+            let args = commandAndArgs[1..] |> Array.map box
 
             let! result = database.ExecuteAsync(command, args)
             return RedisResult.fromStackExchangeRedisResult result

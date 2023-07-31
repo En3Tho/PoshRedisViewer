@@ -76,7 +76,7 @@ type ResultHistoryCache<'a, 'b when 'a: equality>(capacity: int) =
                     ValueNone
                 else
                     index <- newIndex
-                    ValueSome items.[newIndex]
+                    ValueSome items[newIndex]
 
     member _.Down() =
         lock syncRoot ^ fun() ->
@@ -88,7 +88,7 @@ type ResultHistoryCache<'a, 'b when 'a: equality>(capacity: int) =
                     ValueNone
                 else
                     index <- newIndex
-                    ValueSome items.[newIndex]
+                    ValueSome items[newIndex]
 
     member _.Add(key, value) =
         lock syncRoot ^ fun() ->
@@ -111,7 +111,7 @@ type ResultHistoryCache<'a, 'b when 'a: equality>(capacity: int) =
             if uint index >= uint items.Count then
                 ValueNone
             else
-                ValueSome items.[index]
+                ValueSome items[index]
 
 module rec RedisResult =
 
@@ -160,7 +160,7 @@ module rec RedisResult =
         | RedisStream ->
             "RedisStream"
         | RedisMultiResult values ->
-            "RedisMultiResult"
+            $"RedisMultiResult ({values.Length})"
 
 module Semaphore =
     let runTask (taskFactory: unit -> Task<'a>) (semaphore: SemaphoreSlim) = task {
@@ -204,17 +204,12 @@ type FilterType =
     | Regex
 
 module Filter =
-    let stringContains (pattern: string) =
-        fun (value: string) ->
-            value.Contains(pattern, StringComparison.OrdinalIgnoreCase)
+    let stringContains (pattern: string) (value: string) =
+        value.Contains(pattern, StringComparison.OrdinalIgnoreCase)
 
-    let regex (pattern: string) =
+    let regex (pattern: string) (value: string) =
         let regex = Regex(pattern, RegexOptions.Compiled)
-        fun (value: string) ->
-            regex.IsMatch(value)
-module StringSource =
-    let filter filter (source: string[]) =
-        source |> Array.filter filter
+        regex.IsMatch(value)
 
 module View =
     let preventCursorUpDownKeyPressedEvents (view: #View) =
@@ -245,7 +240,7 @@ module ListView =
             | _ -> [||]
 
         if source.Count > 0 then
-            match source.[listView.SelectedItem].ToString() with
+            match source[listView.SelectedItem].ToString() with
             | NotNull & selectedItem ->
                 selectedItem
                 |> textMapper
@@ -280,7 +275,7 @@ module ListView =
 
                 match keyDownEvent.KeyEvent.Key with
                 | Key.Enter ->
-                    MessageBox.Query("Value",selectedValue.ToString(),"Ok")
+                    MessageBox.Query("Value", selectedValue.ToString(), "Ok")
                     |> ignore
                 | _ -> ()
                 keyDownEvent.Handled <- true
