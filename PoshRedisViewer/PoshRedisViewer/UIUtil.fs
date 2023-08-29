@@ -11,6 +11,7 @@ open En3Tho.FSharp.Extensions
 open En3Tho.FSharp.ComputationExpressions.SStringBuilderBuilder
 open NStack
 open PoshRedisViewer.Redis
+
 open Terminal.Gui
 
 type HistorySlot<'a, 'b> = {
@@ -112,6 +113,16 @@ type ResultHistoryCache<'a, 'b when 'a: equality>(capacity: int) =
                 ValueNone
             else
                 ValueSome items[index]
+
+type UIState = {
+    Multiplexer: StackExchange.Redis.IConnectionMultiplexer
+    Semaphore: SemaphoreSlim
+    mutable KeyQueryResultState: KeyQueryResultState
+    mutable ResultsState: ResultsState
+    mutable ResultsFromKeyQuery: ValueOption<string[]>
+    KeyQueryHistory: ResultHistoryCache<string, string array * DateTimeOffset>
+    ResultsHistory: ResultHistoryCache<string, string array * DateTimeOffset>
+}
 
 module rec RedisResult =
 
