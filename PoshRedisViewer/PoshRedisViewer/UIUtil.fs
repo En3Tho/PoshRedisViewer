@@ -244,19 +244,24 @@ module Clipboard =
 
 
 module ListView =
-    let private copySelectedItemTextToClipboard (textMapper: string -> string) (listView: ListView) =
-        let source =
-            match listView.Source with
-            | NotNull & source -> source.ToList()
-            | _ -> [||]
 
-        if source.Count > 0 then
-            match source[listView.SelectedItem].ToString() with
-            | NotNull & selectedItem ->
-                selectedItem
-                |> textMapper
-                |> Clipboard.saveToClipboard
-            | _ -> ()
+    type ListView with
+        member this.TrySelectedItem() =
+            match this.Source, this.SelectedItem with
+            | (NotNull & source), (GtEq 0 & selectedItem) when source.Count >= 0 ->
+                let value = source.ToList()[selectedItem]
+                value |> ValueOption.ofObj
+            | _ ->
+                ValueNone
+
+    let private copySelectedItemTextToClipboard (textMapper: string -> string) (listView: ListView) =
+        match listView.TrySelectedItem() with
+        | ValueSome selectedItem ->
+            selectedItem
+            |> toString
+            |> textMapper
+            |> Clipboard.saveToClipboard
+        | _ -> ()
 
     let addValueCopyOnRightClick textMapper (listView: ListView) =
         listView.add_MouseClick(fun mouseClickEvent ->
@@ -279,17 +284,12 @@ module ListView =
 
     let addDetailedViewOnEnterKey (listView: ListView) =
         listView.add_KeyDown (fun keyDownEvent ->
-            let validIdx = listView.Source <> null && listView.SelectedItem >= 0 && listView.SelectedItem < listView.Source.Count
-        
-            if validIdx then
-                let selectedValue = listView.Source.ToList()[listView.SelectedItem]
-
-                match keyDownEvent.KeyEvent.Key with
-                | Key.Enter ->
-                    MessageBox.Query("Value", selectedValue.ToString(), "Ok")
-                    |> ignore
-                | _ -> ()
-                keyDownEvent.Handled <- true
+            match keyDownEvent.KeyEvent.Key, listView.TrySelectedItem() with
+            | Key.Enter, ValueSome selectedItem ->
+                MessageBox.Query("Value", selectedItem.ToString(), "Ok")
+                |> ignore
+            | _ -> ()
+            keyDownEvent.Handled <- true
         )
         listView
 
