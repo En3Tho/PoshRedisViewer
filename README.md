@@ -71,7 +71,7 @@ cp .\PoshRedisViewerModule\PoshRedisViewerModule.psd1 .\.artifacts\
 ```
 3. Start a new powershell instance (prevents stale modules sitting around etc)
 ```
-pwsh –noprofile
+pwsh â€“noprofile
 ```
 4. Import the module
 ```

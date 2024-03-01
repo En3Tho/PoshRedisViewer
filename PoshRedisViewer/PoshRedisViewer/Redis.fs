@@ -1,117 +1,15 @@
 ﻿module PoshRedisViewer.Redis
 
 open System
-open System.Collections.Generic
 open System.Diagnostics
-open System.Threading
-open System.Threading.Tasks
-open En3Tho.FSharp.ComputationExpressions.Tasks
 open StackExchange.Redis
 open En3Tho.FSharp.Extensions
+open En3Tho.FSharp.ComputationExpressions.Tasks
 
 type StackExchangeRedisResult = RedisResult
 
 let inline toString x = x.ToString()
 let inline toStringOrEmpty x = if Object.ReferenceEquals(x, null) then "" else x.ToString()
-
-module AsyncEnumerable =
-    let toResizeArray (enumerable: IAsyncEnumerable<'a>) = vtask {
-        let result = ResizeArray()
-        use enumerator = enumerable.GetAsyncEnumerator()
-
-        let mutable goNext = true
-        while goNext do
-            match! enumerator.MoveNextAsync() with
-            | true ->
-                result.Add enumerator.Current
-            | _ ->
-                goNext <- false
-
-        return result
-    }
-
-    let dispose2 (enumerator1: #IAsyncEnumerator<'a>)(enumerator2: #IAsyncEnumerator<'b>) = unitvtask {
-        let mutable exn1 = null
-        let mutable exn2 = null
-        try
-            do! enumerator1.DisposeAsync()
-        with e ->
-            exn1 <- e
-        try
-            do! enumerator2.DisposeAsync()
-        with e ->
-            exn2 <- e
-
-        match exn1, exn2 with
-        | null, null ->
-            ()
-        | exn, null
-        | null, exn ->
-            Exception.reraise exn
-        | _ ->
-            raise ^ AggregateException(exn1, exn2)
-    }
-
-    type [<Struct>] private EmptyAsyncEnumerator<'a> =
-        interface IAsyncEnumerator<'a> with
-            member this.Current = invalidOp "Current should not be used with empty async enumerable"
-            member this.DisposeAsync() = ValueTask()
-            member this.MoveNextAsync() = ValueTask.FromResult(false)
-
-    type private EmptyAsyncEnumerable<'a>() =
-        static let cachedEnumerator = EmptyAsyncEnumerator<'a>() :> IAsyncEnumerator<'a>
-        static let cachedInstance = EmptyAsyncEnumerable<'a>()
-        static member Empty = cachedInstance
-
-        interface IAsyncEnumerable<'a> with
-            member this.GetAsyncEnumerator(_) = cachedEnumerator
-
-    type private MapAsyncEnumerableEnumerator<'a, 'b>(source1: IAsyncEnumerable<'a>, map: 'a -> 'b) =
-        let enumerator = source1.GetAsyncEnumerator()
-
-        interface IAsyncEnumerator<'b> with
-            member this.Current = enumerator.Current |> map
-            member this.DisposeAsync() = enumerator.DisposeAsync()
-            member this.MoveNextAsync() = enumerator.MoveNextAsync()
-
-    type private AppendAsyncEnumerableEnumerator<'a>(source1: IAsyncEnumerable<'a>, source2: IAsyncEnumerable<'a>, cancellationToken: CancellationToken) =
-        let mutable enumerator = source1.GetAsyncEnumerator()
-        let mutable enumerator2 = source2.GetAsyncEnumerator()
-        let mutable state = 0
-
-        interface IAsyncEnumerator<'a> with
-            member this.Current =
-                match state with
-                | 0 ->
-                    enumerator.Current
-                | _ ->
-                    enumerator2.Current
-
-            member this.DisposeAsync() = dispose2 enumerator enumerator2
-
-            member this.MoveNextAsync() = vtask {
-                cancellationToken.ThrowIfCancellationRequested()
-                match state with
-                | 0 ->
-                    match! enumerator.MoveNextAsync() with
-                    | true -> return true
-                    | _ ->
-                        state <- 1
-                        return! enumerator2.MoveNextAsync()
-                | _ ->
-                    return! enumerator2.MoveNextAsync()
-            }
-
-    type private AppendAsyncEnumerable<'a>(source1: IAsyncEnumerable<'a>, source2: IAsyncEnumerable<'a>) =
-        interface IAsyncEnumerable<'a> with
-            member this.GetAsyncEnumerator(cancellationToken) = AppendAsyncEnumerableEnumerator<'a>(source1, source2, cancellationToken)
-
-    let empty<'a> = EmptyAsyncEnumerable<'a>.Empty :> IAsyncEnumerable<'a>
-
-    let append source1 source2 =
-        AppendAsyncEnumerable<'a>(source1, source2) :> IAsyncEnumerable<'a>
-
-    let map map source = { new IAsyncEnumerable<'b> with member _.GetAsyncEnumerator(_) = MapAsyncEnumerableEnumerator<'a, 'b>(source, map) }
 
 type RedisHashMember = {
     Field: string
@@ -148,7 +46,7 @@ module RedisResult =
         if redisResult.IsNull then
             RedisResult.RedisNone
         else
-            match redisResult.Type with
+            match redisResult.Resp2Type with
             | ResultType.SimpleString ->
                 RedisString (toString redisResult)
             | ResultType.None ->
@@ -159,7 +57,7 @@ module RedisResult =
                 RedisString (toString redisResult)
             | ResultType.BulkString ->
                 RedisString (toString redisResult)
-            | ResultType.MultiBulk ->
+            | ResultType.Array ->
                 let results = ecast<_, StackExchangeRedisResult[]> redisResult
                 RedisMultiResult (results |> Array.map fromStackExchangeRedisResult)
             | _ ->
@@ -195,7 +93,7 @@ module KeyFormatter =
 
 module RedisReader =
 
-    let connect (user: string option) (password: string option) (endPoint: string) = task {
+    let connect (user: string option) (password: string option) (endPoint: string) = redisTask {
         let connectionOptions = ConfigurationOptions()
         connectionOptions.EndPoints.Add endPoint
 
@@ -205,7 +103,7 @@ module RedisReader =
         return! ConnectionMultiplexer.ConnectAsync(connectionOptions)
     }
 
-    let getKeys (multiplexer: IConnectionMultiplexer) (database: KeySearchDatabase) (pattern: string) = task {
+    let getKeys (multiplexer: IConnectionMultiplexer) (database: KeySearchDatabase) (pattern: string) = redisTask {
         try
             // always 1 endpoint in this version
             let server = multiplexer.GetServer(multiplexer.GetEndPoints()[0])
@@ -235,7 +133,7 @@ module RedisReader =
             return RedisError e
     }
 
-    let execCommand (multiplexer: IConnectionMultiplexer) database (command: string) = task {
+    let execCommand (multiplexer: IConnectionMultiplexer) database (command: string) = redisTask {
         try
             let database = multiplexer.GetDatabase database
             let commandAndArgs = command.Split(" ", StringSplitOptions.RemoveEmptyEntries)
@@ -249,13 +147,13 @@ module RedisReader =
             return RedisError e
     }
 
-    let getKeyType (multiplexer: IConnectionMultiplexer) database (key: string) = task {
+    let getKeyType (multiplexer: IConnectionMultiplexer) database (key: string) = redisTask {
         let key = RedisKey key
         let database = multiplexer.GetDatabase database
         return! database.KeyTypeAsync(key).AsResult()
     }
 
-    let getKeyValue (multiplexer: IConnectionMultiplexer) database (key: string) = task {
+    let getKeyValue (multiplexer: IConnectionMultiplexer) database (key: string) = redisTask {
         match! getKeyType multiplexer database key with
         | Ok keyType ->
             let key = RedisKey key
@@ -265,17 +163,15 @@ module RedisReader =
                 let! hashFields = database.HashGetAllAsync key
                 return
                     hashFields
-                    |> Seq.map ^ fun hashField ->
+                    |> Array.map ^ fun hashField ->
                         { Field = toString hashField.Name; Value = toString hashField.Value }
-                    |> Seq.toArray
                     |> RedisHash
 
             | RedisType.Set ->
                 let! setMembers = database.SetMembersAsync key
                 return
                     setMembers
-                    |> Seq.map toString
-                    |> Seq.toArray
+                    |> Array.map toString
                     |> RedisSet
 
             | RedisType.String ->
@@ -288,9 +184,8 @@ module RedisReader =
                 let! listMembers = database.ListRangeAsync key
                 return
                     listMembers
-                    |> Seq.mapi ^ fun i value ->
+                    |> Array.mapi ^ fun i value ->
                         { Index = i; Value = toString value }
-                    |> Seq.toArray
                     |> RedisList
 
             | RedisType.SortedSet ->

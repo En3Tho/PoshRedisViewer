@@ -3,11 +3,9 @@
 open System
 open System.ComponentModel
 open System.Runtime.CompilerServices
-open System.Runtime.InteropServices
 open System.Text.RegularExpressions
-open System.Threading
-open System.Threading.Tasks
 open En3Tho.FSharp.Extensions
+open En3Tho.FSharp.ComputationExpressions
 open En3Tho.FSharp.ComputationExpressions.SStringBuilderBuilder
 open NStack
 open PoshRedisViewer.Redis
@@ -60,7 +58,7 @@ module ResultsState =
 [<AbstractClass; Extension>]
 type ViewExtensions() =
     [<Extension; EditorBrowsable(EditorBrowsableState.Never)>]
-    static member inline Run(value: #View, [<InlineIfLambda>] runExpr: RunExpression) = runExpr(); value
+    static member inline Run(value: #View, [<InlineIfLambda>] runExpr: CollectionCode) = runExpr(); value
 
 type ResultHistoryCache<'a, 'b when 'a: equality>(capacity: int) =
     let syncRoot = obj()
@@ -116,7 +114,6 @@ type ResultHistoryCache<'a, 'b when 'a: equality>(capacity: int) =
 
 type UIState = {
     Multiplexer: StackExchange.Redis.IConnectionMultiplexer
-    Semaphore: SemaphoreSlim
     mutable KeyQueryResultState: KeyQueryResultState
     mutable ResultsState: ResultsState
     mutable ResultsFromKeyQuery: ValueOption<string[]>
@@ -173,14 +170,8 @@ module rec RedisResult =
         | RedisMultiResult values ->
             $"RedisMultiResult ({values.Length})"
 
-module Semaphore =
-    let runTask (taskFactory: unit -> Task<'a>) (semaphore: SemaphoreSlim) = task {
-        do! semaphore.WaitAsync()
-        try
-            return! taskFactory()
-        finally
-            semaphore.Release() |> ignore
-    }
+// TODO: remove later
+let defer(v: 'a, disposer: 'a -> unit) = deferv disposer v
 
 let ustr str = icast<string, ustring> str
 module Ustr =
@@ -196,18 +187,13 @@ module Ustr =
         | _ -> ustr text
 
 module Key =
-    let private copyCommandKey =
-        if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
-            Key.CtrlMask ||| Key.C
-        else
-            Key.CtrlMask ||| Key.Y
-
-    let private pasteFromMiniClipboardKey = Key.CtrlMask ||| Key.B
+    let private copyKey = Key.CtrlMask ||| Key.C
+    let private pasteKey = Key.CtrlMask ||| Key.V
 
     let private is flag (key: Key) = key |> Enum.hasFlag flag |> Option.ofBool
 
-    let (|CopyCommand|_|) key = key |> is copyCommandKey
-    let (|PasteFromMiniClipboardCommand|_|) key = key |> is pasteFromMiniClipboardKey
+    let (|CopyCommand|_|) key = key |> is copyKey
+    let (|PasteCommand|_|) key = key |> is pasteKey
 
 [<RequireQualifiedAccess>]
 type FilterType =
@@ -223,25 +209,54 @@ module Filter =
         regex.IsMatch(value)
 
 module View =
-    let preventCursorUpDownKeyPressedEvents (view: #View) =
+    let preventKeyPressedEvents (events: Key[]) (view: #View) =
         view.add_KeyPress(fun keyPressEvent ->
             match keyPressEvent.KeyEvent.Key with
-            | Key.CursorUp
-            | Key.CursorDown ->
+            | key when events |> Array.contains key ->
                 keyPressEvent.Handled <- true
             | _ -> ()
         )
         view
 
+    let preventCursorUpDownKeyPressedEvents (view: #View) =
+        view |> preventKeyPressedEvents [| Key.CursorUp; Key.CursorDown |]
+
+type MiniClipboard(clipboard: IClipboard) =
+    let mutable current = ""
+
+    interface IClipboard with
+        member this.GetClipboardData() =
+            let original = try' { clipboard.GetClipboardData() }
+            original |> String.defaultValue current
+
+        member this.SetClipboardData(text) =
+            current <- text
+            try' { clipboard.SetClipboardData(current) }
+
+        member this.TryGetClipboardData(result) =
+            if not (clipboard.TryGetClipboardData(&result)) then
+                result <- current
+            true
+
+        member this.TrySetClipboardData(text) =
+            current <- text
+            clipboard.TrySetClipboardData(text) |> ignore
+            true
+
+        member this.IsSupported = true
+
 module Clipboard =
-    let mutable private miniClipboard = ""
+
+    let mutable MiniClipboard = nullRef<IClipboard>
+
     let saveToClipboard text =
         let text = if Object.ReferenceEquals(text, null) then "" else text.ToString()
-        Clipboard.TrySetClipboardData text |> ignore
-        miniClipboard <- text
+        MiniClipboard.TrySetClipboardData text |> ignore
 
-    let getFromMiniClipboard() = miniClipboard
-
+    let getFromClipboard() =
+        let mutable text = nullRef
+        MiniClipboard.TryGetClipboardData(&text) |> ignore
+        text |> String.defaultValue ""
 
 module ListView =
 
@@ -269,6 +284,7 @@ module ListView =
             match mouseClickEvent.MouseEvent.Flags with
             | Enum.HasFlag MouseFlags.Button3Released ->
                 copySelectedItemTextToClipboard textMapper listView
+                mouseClickEvent.Handled <- true
             | _ -> ()
         )
         listView
@@ -278,6 +294,7 @@ module ListView =
             match keyDownEvent.KeyEvent.Key with
             | Key.CopyCommand ->
                 copySelectedItemTextToClipboard textMapper listView
+                keyDownEvent.Handled <- true
             | _ -> ()
         )
         listView
@@ -288,8 +305,8 @@ module ListView =
             | Key.Enter, ValueSome selectedItem ->
                 MessageBox.Query("Value", selectedItem.ToString(), "Ok")
                 |> ignore
+                keyDownEvent.Handled <- true
             | _ -> ()
-            keyDownEvent.Handled <- true
         )
         listView
 
@@ -300,9 +317,11 @@ module TextField =
             match keyDownEvent.KeyEvent.Key with
             | Key.CopyCommand ->
                 textField.SelectedText |> Clipboard.saveToClipboard
-            | Key.PasteFromMiniClipboardCommand ->
+                keyDownEvent.Handled <- true
+
+            | Key.PasteCommand ->
                 let newText, newCursorPosition =
-                    let clipboardText = Clipboard.getFromMiniClipboard()
+                    let clipboardText = Clipboard.getFromClipboard()
 
                     match textField.SelectedLength, textField.CursorPosition with
                     | 0, 0 ->
@@ -327,6 +346,7 @@ module TextField =
 
                 textField.Text <- newText
                 textField.CursorPosition <- newCursorPosition
+                keyDownEvent.Handled <- true
             | _ -> ()
         )
         textField

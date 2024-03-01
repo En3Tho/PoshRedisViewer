@@ -1,14 +1,11 @@
 ﻿module PoshRedisViewer.UILogic
 
 open System
-open System.Threading
 open En3Tho.FSharp.Extensions
 open PoshRedisViewer.Redis
 open PoshRedisViewer.UI
 open PoshRedisViewer.UIUtil
 open Terminal.Gui
-
-#nowarn "0058"
 
 let makeErrorHandler (views: Views) =
     fun (exn: Exception) ->
@@ -55,49 +52,53 @@ let updateResultsFieldsWithNewState (uiState: UIState) (views: Views) state =
     views.ResultsFrameView.Title <- state |> ResultsState.toString |> ustr
     views.ResultsListView.SetSource state.Result
 
+let getDataBase (views: Views) =
+    if views.DbPickerCheckBox.Checked then
+        KeySearchDatabase.Range (0, 15)
+    else
+        KeySearchDatabase.Single views.DbPickerComboBox.SelectedItem
+
 module KeyQueryTextField =
 
     let addKeyDownEvenProcessing (uiState: UIState) (views: Views) (keyQueryTextField: TextField) =
         let filterSourceAndSetKeyQueryResultFromHistory keyQuery keys time =
             keyQueryTextField.Text <- ustr keyQuery
-            let newKeyQueryState = { uiState.KeyQueryResultState with
-                Keys = views |> filterKeyQueryResult keys
-                FromHistory = true
-                Time = time
-            }
+            let newKeyQueryState =
+                { uiState.KeyQueryResultState with
+                    Keys = views |> filterKeyQueryResult keys
+                    FromHistory = true
+                    Time = time
+                }
             updateKeyQueryFieldsWithNewState uiState views newKeyQueryState
 
         keyQueryTextField.add_KeyDown (fun keyDownEvent ->
             match keyDownEvent.KeyEvent.Key with
-            | Key.Enter ->
-                uiState.Semaphore |> Semaphore.runTask ^ fun _ -> task {
-                     let database =
-                         if views.DbPickerCheckBox.Checked then
-                             KeySearchDatabase.Range (0, 15)
-                         else
-                             KeySearchDatabase.Single views.DbPickerComboBox.SelectedItem
+            | Key.Enter -> ignore ^ uiTask {
+                use _ = defer(keyQueryTextField, fun it -> it.Enabled <- true)
 
-                     let pattern = keyQueryTextField.Text.ToString()
-                     views.KeysFrameView.Title <- ustr "Keys (processing)"
+                keyQueryTextField.Enabled <- false
+                views.KeysFrameView.Title <- ustr "Keys (processing)"
+                let database = getDataBase views
+                let pattern = keyQueryTextField.Text.ToString()
 
-                     let! keys =
-                         pattern
-                         |> RedisReader.getKeys uiState.Multiplexer database
-                         |> Task.map RedisResult.toStringArray
+                let! keys =
+                    pattern
+                    |> RedisReader.getKeys uiState.Multiplexer database
+                    |> Task.map RedisResult.toStringArray
+                keys |> Array.sortInPlace
 
-                     keys |> Array.sortInPlace
-                     let time = DateTimeOffset.Now
-                     uiState.KeyQueryHistory.Add(pattern, (keys, time))
+                let time = DateTimeOffset.Now
+                uiState.KeyQueryHistory.Add(pattern, (keys, time))
 
-                     let newKeyQueryResultState = { uiState.KeyQueryResultState with
-                         Keys = views |> filterKeyQueryResult keys
-                         FromHistory = false
-                         Time = time
-                     }
-                     updateKeyQueryFieldsWithNewState uiState views newKeyQueryResultState
+                let newKeyQueryResultState =
+                    { uiState.KeyQueryResultState with
+                        Keys = views |> filterKeyQueryResult keys
+                        FromHistory = false
+                        Time = time
+                    }
+
+                updateKeyQueryFieldsWithNewState uiState views newKeyQueryResultState
                 }
-                |> ignore
-
             | Key.CursorUp ->
                 match uiState.KeyQueryHistory.Up() with
                 | ValueSome { Key = keyQuery; Value = source, time; } ->
@@ -120,11 +121,12 @@ module KeyQueryFilterTextField =
         match uiState.KeyQueryHistory.TryReadCurrent() with
         | ValueSome { Value = keys, time } ->
             let filter = Ustr.toString keyQueryFilterTextField.Text
-            let newKeyQueryResultState = { uiState.KeyQueryResultState with
-                Keys = views |> filterKeyQueryResult keys
-                Filtered = not ^ String.IsNullOrEmpty filter
-                Time = time
-            }
+            let newKeyQueryResultState =
+                { uiState.KeyQueryResultState with
+                    Keys = views |> filterKeyQueryResult keys
+                    Filtered = not ^ String.IsNullOrEmpty filter
+                    Time = time
+                }
             updateKeyQueryFieldsWithNewState uiState views newKeyQueryResultState
         | _ -> ()
 
@@ -140,23 +142,22 @@ module KeyQueryFilterTextField =
 
 module KeysListView =
 
-    let private fetchNewKeyInfo (uiState: UIState) (views: Views) key =
-        uiState.Semaphore |> Semaphore.runTask ^ fun _ -> task {
-            let database, key = key.ToString() |> KeyFormatter.getDatabaseAndOriginalKeyFromFormattedKeyString
-            views.ResultsFrameView.Title <- ustr "Results (processing)"
+    let private fetchNewKeyInfo (uiState: UIState) (views: Views) key = ignore ^ uiTask {
+        let database, key = key.ToString() |> KeyFormatter.getDatabaseAndOriginalKeyFromFormattedKeyString
+        views.ResultsFrameView.Title <- ustr "Results (processing)"
 
-            let! keyValue = key |> RedisReader.getKeyValue uiState.Multiplexer database
-            let results = keyValue |> RedisResult.toStringArray
+        let! keyValue = key |> RedisReader.getKeyValue uiState.Multiplexer database
+        let results = keyValue |> RedisResult.toStringArray
 
-            uiState.ResultsFromKeyQuery <- ValueSome results
-            updateResultsFieldsWithNewState uiState views { uiState.ResultsState with
-                Result = results |> filterCommandResult views
-                ResultType = RedisResult.getInformationText keyValue
-                FromHistory = false
-                Time = DateTimeOffset.Now
-            }
-        }
-        |> ignore
+        uiState.ResultsFromKeyQuery <- ValueSome results
+        { uiState.ResultsState with
+            Result = results |> filterCommandResult views
+            ResultType = RedisResult.getInformationText keyValue
+            FromHistory = false
+            Time = DateTimeOffset.Now
+        } |> updateResultsFieldsWithNewState uiState views
+    }
+    
 
     let addSelectedItemChangedEventProcessing (uiState: UIState) (views: Views) (keysListView: ListView) =
         keysListView.add_SelectedItemChanged (fun selectedItemChangedEvent ->
@@ -173,40 +174,43 @@ module CommandTextField =
     let private filterSourceAndSetCommandResultFromHistory (uiState: UIState) (views: Views) (commandTextField: TextField)
         command commandResult time =
         commandTextField.Text <- ustr command
-        let newResultsState = { uiState.ResultsState with
-            Result = commandResult |> filterCommandResult views
-            ResultType = "Command"
-            FromHistory = true
-            Time = time
-        }
+        let newResultsState =
+            { uiState.ResultsState with
+                Result = commandResult |> filterCommandResult views
+                ResultType = "Command"
+                FromHistory = true
+                Time = time
+            }
 
         updateResultsFieldsWithNewState uiState views newResultsState
 
-    let private processEnterKey (uiState: UIState) (views: Views) (commandTextField: TextField) =
-        uiState.Semaphore |> Semaphore.runTask ^ fun _ -> task {
-            let database = views.DbPickerComboBox.SelectedItem
-            let command = commandTextField.Text.ToString()
-            views.ResultsFrameView.Title <- ustr "Results (Processing)"
+    let private processEnterKey (uiState: UIState) (views: Views) (commandTextField: TextField) = ignore ^ uiTask {
+        use _ = defer(commandTextField, fun it -> it.Enabled <- true)
 
-            let! commandResult =
-                command
-                |> RedisReader.execCommand uiState.Multiplexer database
-                |> Task.map RedisResult.toStringArray
+        commandTextField.Enabled <- false
+        views.ResultsFrameView.Title <- ustr "Results (Processing)"
+        let database = views.DbPickerComboBox.SelectedItem
+        let command = commandTextField.Text.ToString()
 
-            let time = DateTimeOffset.Now
-            uiState.ResultsHistory.Add(command, (commandResult, time))
-            uiState.ResultsFromKeyQuery <- ValueNone
+        let! commandResult =
+            command
+            |> RedisReader.execCommand uiState.Multiplexer database
+            |> Task.map RedisResult.toStringArray
 
-            let filter = Ustr.toString views.ResultFilterTextField.Text
-            let newResultsState = { uiState.ResultsState with
+        let time = DateTimeOffset.Now
+        uiState.ResultsHistory.Add(command, (commandResult, time))
+        uiState.ResultsFromKeyQuery <- ValueNone
+
+        let filter = Ustr.toString views.ResultFilterTextField.Text
+        let newResultsState =
+            { uiState.ResultsState with
                 Result = commandResult |> filterCommandResult views
                 ResultType = "Command"
                 Filtered = not ^ String.IsNullOrEmpty filter
                 Time = time
             }
-            updateResultsFieldsWithNewState uiState views newResultsState
-        }
-        |> ignore
+        updateResultsFieldsWithNewState uiState views newResultsState
+    }
 
     let private processCursorUpKey (uiState: UIState) (views: Views) (commandTextField: TextField) =
         match uiState.ResultsHistory.Up() with
@@ -246,10 +250,11 @@ module ResultFilterTextField =
         | ValueSome commandResult, _
         | _, ValueSome { Value = commandResult, _ } ->
             let filter = Ustr.toString resultFilterTextField.Text
-            let newResultState = { uiState.ResultsState with
-                Result = commandResult |> filterCommandResult views
-                Filtered = not ^ String.IsNullOrEmpty filter
-            }
+            let newResultState =
+                { uiState.ResultsState with
+                    Result = commandResult |> filterCommandResult views
+                    Filtered = not ^ String.IsNullOrEmpty filter
+                }
             updateResultsFieldsWithNewState uiState views newResultState
         | _ -> ()
 
@@ -266,7 +271,6 @@ module ResultFilterTextField =
 let setupViewsLogic multiplexer (views: Views) =
 
     let uiState = {
-        UIState.Semaphore = new SemaphoreSlim(1)
         Multiplexer = multiplexer
         KeyQueryResultState = { KeyQueryResultState.Keys = [||]; Filtered = false; FromHistory = false; Time = DateTimeOffset() }
         ResultsState = { ResultsState.Result = [||]; ResultType = ""; Filtered = false; FromHistory = false; Time = DateTimeOffset() }

@@ -1,0 +1,9 @@
+<Project>
+
+    <PropertyGroup Condition="'$(ProjectType)' == 'PowershellModule'">
+        <PackageVersion>$(ModuleVersion)</PackageVersion>
+        <AssemblyVersion>$(ModuleVersion)</AssemblyVersion>
+        <FileVersion>$(ModuleVersion)</FileVersion>
+    </PropertyGroup>
+
+</Project>

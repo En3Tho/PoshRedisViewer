@@ -2,13 +2,11 @@
 
 open FSharp.Reflection
 open En3Tho.FSharp.Extensions
+open En3Tho.FSharp.ComputationExpressions
 open En3Tho.FSharp.ComputationExpressions.SCollectionBuilder
 open NStack
 open PoshRedisViewer.UIUtil
 open Terminal.Gui
-
-#nowarn "0058"
-#nowarn "0760"
 
 type Views = {
     CommandFrameView: FrameView
@@ -180,6 +178,7 @@ let setupViewsPosition (views: Views) =
             views.KeyQueryFrameView {
                 views.KeyQueryTextField
             }
+
             views.KeyQueryFilterFrameView {
                 views.KeyQueryFilterTextField
             }
@@ -194,18 +193,23 @@ let setupViewsPosition (views: Views) =
             views.KeysFrameView {
                 views.KeysListView
             }
+
             views.ResultsFrameView {
                 views.ResultsListView
             }
+
             views.CommandFrameView {
                 views.CommandTextField
             }
+
             views.ResultFilterFrameView {
                 views.ResultFilterTextField
             }
         }
     } |> ignore
 
+    // what do to with ui?
+    // something that tzind suggested?
     views.Window.Subviews[0].BringSubviewToFront(views.KeyQueryFilterTypeComboBox)
     views.Window.Subviews[0].BringSubviewToFront(views.DbPickerComboBox)
     views.Window.Subviews[0].BringSubviewToFront(views.DbPickerCheckBox)

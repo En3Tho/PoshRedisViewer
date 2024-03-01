@@ -1,23 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
-        <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <WarnOn>3390;$(WarnOn)</WarnOn>
-        <PackageVersion>0.0.11</PackageVersion>
-        <AssemblyVersion>0.0.11</AssemblyVersion>
-        <FileVersion>0.0.11</FileVersion>
+        <ProjectType>PowershellModule</ProjectType>
     </PropertyGroup>
+
     <ItemGroup>
+        <Compile Include="SemaphoreTask.fs" />
+        <Compile Include="Tasks.fs" />
+        <Compile Include="AsyncEnumerable.fs" />
         <Compile Include="Redis.fs" />
         <Compile Include="UIUtil.fs" />
         <Compile Include="UI.fs" />
         <Compile Include="UILogic.fs" />
         <Compile Include="App.fs" />
     </ItemGroup>
+
     <ItemGroup>
+        <PackageReference Include="En3Tho.FSharp.ComputationExpressions" />
         <PackageReference Include="En3Tho.FSharp.Extensions" />
         <PackageReference Include="StackExchange.Redis" />
         <PackageReference Include="Terminal.Gui" />
         <PackageReference Remove="FSharp.Core" />
     </ItemGroup>
+
 </Project>

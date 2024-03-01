@@ -1,0 +1,22 @@
+<Project>
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ModuleVersion>0.0.12</ModuleVersion>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.fsproj'">
+        <Tailcalls>false</Tailcalls>
+        <NoWarn>
+            <!--Unverifiable IL--> 9,
+            <!--explicit new IDisposable--> 0760,
+            <!--unsafe--> 96 ,
+            <!--static abstract--> 3535,
+            <!--inline il--> 42,
+            <!--op_Explicit--> 77,
+            <!--Resumable code invocation--> 3513,
+            <!--Compiler only construct--> 1204
+        </NoWarn>
+    </PropertyGroup>
+
+</Project>
