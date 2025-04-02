@@ -5,7 +5,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="SemaphoreTask.fs" />
         <Compile Include="Tasks.fs" />
         <Compile Include="AsyncEnumerable.fs" />
         <Compile Include="Redis.fs" />

@@ -170,9 +170,6 @@ module rec RedisResult =
         | RedisMultiResult values ->
             $"RedisMultiResult ({values.Length})"
 
-// TODO: remove later
-let defer(v: 'a, disposer: 'a -> unit) = deferv disposer v
-
 let ustr str = icast<string, ustring> str
 module Ustr =
 

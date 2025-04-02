@@ -1,8 +1,8 @@
 ﻿module PoshRedisViewer.App
 
 open System.Threading
+open En3Tho.FSharp.ComputationExpressions.GenericTaskBuilder.Tasks.SemaphoreSlimTask
 open En3Tho.FSharp.ComputationExpressions.GenericTaskBuilder.Tasks.SynchronizationContextTask
-open PoshRedisViewer.SemaphoreTask
 open PoshRedisViewer.UIUtil
 open StackExchange.Redis
 open Terminal.Gui
@@ -10,7 +10,7 @@ open Terminal.Gui
 let run(multiplexer: IConnectionMultiplexer) =
     Application.Init()
 
-    UITask.Builder <- SynchronizationContextTask(SynchronizationContext.Current)
+    UITask.Builder <- SynchronizationContextTaskBuilder(SynchronizationContext.Current)
     RedisTask.Builder <- SemaphoreSlimTaskBuilder(SemaphoreSlim(1))
     Clipboard.MiniClipboard <- MiniClipboard(Application.Driver.Clipboard)
 

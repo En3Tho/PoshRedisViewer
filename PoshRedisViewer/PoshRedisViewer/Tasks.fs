@@ -1,16 +1,15 @@
 ﻿namespace PoshRedisViewer
 
 open En3Tho.FSharp.Extensions
+open En3Tho.FSharp.ComputationExpressions.GenericTaskBuilder.Tasks.SemaphoreSlimTask
 open En3Tho.FSharp.ComputationExpressions.GenericTaskBuilder.Tasks.SynchronizationContextTask
-open PoshRedisViewer.SemaphoreTask
 
 [<AbstractClass; Sealed>]
 type UITask() =
-    static member val Builder = nullRef<SynchronizationContextTask> with get, set
+    static member val Builder = nullRef<SynchronizationContextTaskBuilder> with get, set
 
 [<AbstractClass; Sealed>]
 type RedisTask() =
-
     static member val Builder = nullRef<SemaphoreSlimTaskBuilder> with get, set
 
 [<AbstractClass; Sealed; AutoOpen>]
